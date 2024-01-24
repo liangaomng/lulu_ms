@@ -29,6 +29,7 @@ class PDE_PossionData(PDE_base):
         self.mu = mu
         self.d=2
         self.data_mse=nn.MSELoss()
+        self.device= torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
 
     
@@ -77,7 +78,9 @@ class PDE_PossionData(PDE_base):
         #data:[batch,2]
         # 确保 data 的相关列设置了 requires_grad=True  对于data：第0维度是x，t是1维度
 
+
         u=net(pde_data)  # 计算网络输出
+
         grad_outputs = torch.ones_like(u)  # 创建一个与u形状相同且元素为1的张量
 
         # 计算一阶导数
@@ -202,10 +205,15 @@ class PDE_PossionData(PDE_base):
         # 提取 x 和 t
         x = data[:, 0]
         y = data[:, 1]
-        data=torch.from_numpy(data).float()
+        
+        data=torch.from_numpy(data).float().to(self.device)
 
         # 获取 usol 值
-        usol_net = model(data).detach().numpy()
+        if self.device =="cuda":
+             usol_net = model(data).cpu().detach().numpy()
+            
+        else:
+            usol_net = model(data).cpu().detach().numpy()
 
         # 绘制热力图
         sc=ax.scatter(x,y, c=usol_net, cmap="bwr",s=1)

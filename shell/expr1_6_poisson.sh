@@ -5,11 +5,11 @@ export DDE_BACKEND=pytorch
 export pde_task=Poisson
 export sub_folder=Expr2d_1_6
 
-for name_order in {1..10}; do
+for name_order in {1..1}; do
 
    export expr_floder="EXPRS/$pde_task/$sub_folder/Poisson_Seed_Scale_Expr1_6_$name_order"
 
-   for seed in {1..3};do
+   for seed in {1..1};do
 
       echo $expr_floder/Expr_$seed.xlsx 
       

@@ -138,6 +138,7 @@ class Expr_Agent(Expr):
         self.args.PDE = pde_task   #deepxde
 
         self.device= torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         self.model = None
         # 外面传入的参数 不用excel
         self.epoch = kwargs["train_epoch"]    
@@ -407,7 +408,7 @@ class Expr_Agent(Expr):
         if type == "deepxde":
             test_data = kwargs["test_data"] 
             # 将TensorDataset转换为numpy数组
-            x_test = test_data.numpy() #[..,2]
+            x_test = test_data.cpu().numpy() #[..,2]
 
 
         # 读取损失记录
@@ -580,9 +581,9 @@ class Expr_Agent(Expr):
 
             train_data= self.solver.data.train_x#pde+bc
 
-            train_data=torch.from_numpy(train_data).float()
+            train_data=torch.from_numpy(train_data).float().to(self.device)
             #inputs
-            pde_data=torch.from_numpy(pde_data).float()
+            pde_data=torch.from_numpy(pde_data).float().to(self.device)
             pde_data.requires_grad=True
             #pde loss
             train_pde_loss=self.solver.pde_loss(net=self.model,pde_data=pde_data)
@@ -608,7 +609,7 @@ class Expr_Agent(Expr):
             #plot
             if epoch % 1== 0:
                 test=self.solver.data.test_x
-                torch_test=torch.from_numpy(test).float()
+                torch_test=torch.from_numpy(test).float().to(self.device)
 
                 data_loss = self.solver.data_loss(net=self.model, data=pde_data)
                 pde_loss=self.solver.pde_loss(net=self.model,pde_data=pde_data)

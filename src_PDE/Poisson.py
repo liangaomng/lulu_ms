@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from torch.autograd import grad
 import torch
+
 class  PDE_base():
     def __init__(self):
         pass

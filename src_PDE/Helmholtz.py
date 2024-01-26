@@ -182,7 +182,7 @@ class PDE_HelmholtzData(PDE_base):
          # 获取 usol 值
         if self.device =="cuda":
              usol_net = model(data).cpu().detach().numpy()
-            
+
         else:
             usol_net = model(data).cpu().detach().numpy()
             

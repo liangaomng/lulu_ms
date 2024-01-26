@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from torch.autograd import grad
 class  PDE_base():
     def __init__(self):
-        pass
+        self.device= torch.device("cuda" if torch.cuda.is_available() else "cpu")
     def Get_Data(self):
         pass
     def torch_u(self,x,t):
@@ -176,7 +176,11 @@ class PDE_HeatData(PDE_base):
         data=torch.from_numpy(data).float()
 
         # 获取 usol 值
-        usol_net = model(data).detach().numpy()
+        if self.device =="cuda":
+            usol_net = model(data).cpu().detach().numpy()
+            
+        else:
+            usol_net = model(data).cpu().detach().numpy()
 
         # 绘制热力图
         sc=ax.scatter(t,x, c=usol_net, cmap="bwr",s=1)

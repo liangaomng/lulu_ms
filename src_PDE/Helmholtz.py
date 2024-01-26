@@ -14,7 +14,7 @@ from torch.autograd import grad
 import matplotlib as mpl
 class  PDE_base():
     def __init__(self):
-        pass
+        self.device= torch.device("cuda" if torch.cuda.is_available() else "cpu")
     def Get_Data(self):
         pass
     def torch_u(self,x,t):
@@ -179,9 +179,13 @@ class PDE_HelmholtzData(PDE_base):
         y = data[:, 1]
         data=torch.from_numpy(data).float()
 
-        # 获取 usol 值
-        usol_net = model(data).detach().numpy()
-
+         # 获取 usol 值
+        if self.device =="cuda":
+             usol_net = model(data).cpu().detach().numpy()
+            
+        else:
+            usol_net = model(data).cpu().detach().numpy()
+            
         # 绘制热力图
         sc=ax.scatter(x,y, c=usol_net, cmap="bwr",s=1)
         cb= plt.colorbar(sc, ax=ax)

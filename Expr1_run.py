@@ -14,6 +14,8 @@ if __name__=="__main__":
     parser.add_argument('--freq', default=1.0,type=float, help='heat_freq')
     parser.add_argument('--mu', default=1.0,type=float, help='poisson_mu')
     parser.add_argument('--epoch', default=10000,type=int, help='epochs')
+    #新功能 没写完
+    parser.add_argument('--fig_record_intereve', default=500,type=int, help='fig save')
     
     args = parser.parse_args()
     print(args)
@@ -39,7 +41,8 @@ if __name__=="__main__":
         solver=solver,
         Read_set_path=args.expr_set_path,
         compile_mode=False,
-        train_epoch=args.epoch,)
+        train_epoch=args.epoch,
+        fig_save_interve=args.fig_record_intereve,)
 
     expr.Do_Expr()
 

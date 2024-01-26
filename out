@@ -1,0 +1,41 @@
+EXPRS/Heat/Expr2d_1_4/Expr_1.xlsx
+Namespace(expr_set_path='EXPRS/Heat/Expr2d_1_4/Expr_1.xlsx', pde_name='Heat', wave_number=1.0, freq=1.0, mu=15.0, epoch=100, fig_record_intereve=500)
+Heat
+PDE_Data: <src_PDE.Heat.PDE_HeatData object at 0x1040eadd0>
+string 1
+string 0,1000,4500
+string 2,200,200,200,1
+expr: done seed:1  order:1
+EXPRS/Heat/Expr2d_1_4/Expr_2.xlsx
+Namespace(expr_set_path='EXPRS/Heat/Expr2d_1_4/Expr_1.xlsx', pde_name='Heat', wave_number=1.0, freq=1.0, mu=15.0, epoch=100, fig_record_intereve=500)
+Heat
+PDE_Data: <src_PDE.Heat.PDE_HeatData object at 0x10438edd0>
+string 1
+string 0,1000,4500
+string 2,200,200,200,1
+expr: done seed:2  order:1
+EXPRS/Heat/Expr2d_1_4/Expr_3.xlsx
+Namespace(expr_set_path='EXPRS/Heat/Expr2d_1_4/Expr_1.xlsx', pde_name='Heat', wave_number=1.0, freq=1.0, mu=15.0, epoch=100, fig_record_intereve=500)
+Heat
+PDE_Data: <src_PDE.Heat.PDE_HeatData object at 0x101feadd0>
+string 1
+string 0,1000,4500
+string 2,200,200,200,1
+expr: done seed:3  order:1
+EXPRS/Heat/Expr2d_1_4/Expr_1.xlsx
+Namespace(expr_set_path='EXPRS/Heat/Expr2d_1_4/Expr_1.xlsx', pde_name='Heat', wave_number=1.0, freq=1.0, mu=15.0, epoch=100, fig_record_intereve=500)
+Heat
+PDE_Data: <src_PDE.Heat.PDE_HeatData object at 0x101d0add0>
+string 1
+string 0,1000,4500
+string 2,200,200,200,1
+expr: done seed:1  order:2
+EXPRS/Heat/Expr2d_1_4/Expr_2.xlsx
+Namespace(expr_set_path='EXPRS/Heat/Expr2d_1_4/Expr_1.xlsx', pde_name='Heat', wave_number=1.0, freq=1.0, mu=15.0, epoch=100, fig_record_intereve=500)
+Heat
+PDE_Data: <src_PDE.Heat.PDE_HeatData object at 0x1068fedd0>
+string 1
+string 0,1000,4500
+string 2,200,200,200,1
+expr: done seed:2  order:2
+EXPRS/Heat/Expr2d_1_4/Expr_3.xlsx

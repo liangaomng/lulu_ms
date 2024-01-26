@@ -140,8 +140,9 @@ class Expr_Agent(Expr):
         self.device= torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.model = None
-        # 外面传入的参数 不用excel
+        # 外面传入的参数 不用excel里面的参数
         self.epoch = kwargs["train_epoch"]    
+        self.fig_save_interve= kwargs["fig_save_interve"]
         
         self._Random(seed=self.args.seed)
         self._Check()
@@ -293,8 +294,8 @@ class Expr_Agent(Expr):
 
     def _update_loss_record(self, epoch,train_loss,type=None,**kwargs):
 
-        # 画loss的值
-        if epoch % self.args.fig_record_interve == 0:
+        # 保存画loss的值
+        if epoch % 10 == 0:
             if type!="deepxde":
                 valid_loss=self._Valid(epoch=epoch,num_epochs=self.args.epoch)
                 test_loss =self._Test4Save(epoch=epoch)
@@ -327,6 +328,8 @@ class Expr_Agent(Expr):
                 np.save(self.args.Loss_Record_Path, updated_data)
 
             self._CheckPoint(epoch=epoch)
+        #画图的间隔久
+        if epoch % self.fig_save_interve == 0:
             self._save4plot(epoch, test_loss,test_data=test_data,type="deepxde",sub_omega=sub_omega)
 
     def _Valid(self,**kwargs):

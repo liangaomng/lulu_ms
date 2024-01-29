@@ -14,7 +14,8 @@ import matplotlib.pyplot as plt
 from torch.autograd import grad
 class  PDE_base():
     def __init__(self):
-        self.device= torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        pass
+       
     def Get_Data(self):
         pass
     def torch_u(self,x,t):
@@ -29,7 +30,7 @@ class PDE_HeatData(PDE_base):
         self.L = 1
         self.n = freq
         self.data_mse=nn.MSELoss()
-
+        self.device= torch.device("cuda" if torch.cuda.is_available() else "cpu")
     def torch_u(self, x, t):
         # 确保 x 和 t 是 torch.Tensor 类型
         out= torch.exp(-(self.n ** 2 * np.pi ** 2 * self.a * t) / (self.L ** 2)) * torch.sin(

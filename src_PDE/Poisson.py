@@ -15,7 +15,8 @@ import torch
 
 class  PDE_base():
     def __init__(self):
-         self.device= torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        pass
+         
     
     def Get_Data(self):
         pass
@@ -30,6 +31,7 @@ class PDE_PossionData(PDE_base):
         self.mu = mu
         self.d=2
         self.data_mse=nn.MSELoss()
+        self.device= torch.device("cuda" if torch.cuda.is_available() else "cpu")
        
 
     # Redefine the functions to accept a point (x, y) instead of a vector x

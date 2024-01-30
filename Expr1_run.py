@@ -12,7 +12,7 @@ if __name__=="__main__":
     parser.add_argument('--pde_name', type=str, help='pde_name')
     parser.add_argument('--wave_number', default=1.0,type=float, help='helmholtz_wave_number')
     parser.add_argument('--freq', default=1.0,type=float, help='heat_freq')
-    parser.add_argument('--mu', default=15.0,type=float, help='poisson_mu')
+    parser.add_argument('--mu', default=1.0,type=float, help='poisson_mu')
     parser.add_argument('--epoch', default=10000,type=int, help='epochs')
     parser.add_argument('--fig_record_intereve', default=500,type=int, help='fig save')
     

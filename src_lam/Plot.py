@@ -274,9 +274,9 @@ class Plot_Adaptive:
                     scale_number=contri_record_df.shape[1]-1 #减去epoch
                     omege_value=np.load(omega_path,allow_pickle=True)#[epoch,3]
  
-                    # 定义6种颜色
+                    # 定义15种颜色
                     # The above code is creating a list called "colors" that contains several color names.
-                    colors = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow']
+                    colors = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'orange', 'purple', 'pink', 'brown', 'grey', 'lime', 'indigo', 'violet']
 
                     for i in range(scale_number):
                         self.axes[7].plot(contri_record_df[:,0],

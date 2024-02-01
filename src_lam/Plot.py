@@ -276,7 +276,12 @@ class Plot_Adaptive:
  
                     # 定义15种颜色
                     # The above code is creating a list called "colors" that contains several color names.
-                    colors = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'orange', 'purple', 'pink', 'brown', 'grey', 'lime', 'indigo', 'violet']
+                    colors = [
+                    'blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'orange', 'purple', 
+                    'pink', 'brown', 'grey', 'lime', 'indigo', 'violet', 'teal', 'maroon', 'olive', 
+                    'navy', 'coral', 'turquoise', 'salmon', 'gold', 'ivory', 'beige', 'mint', 'lavender', 
+                    'charcoal', 'peach', 'amber', 'sienna', 'plum', 'emerald', 'cerulean', 'mauve']
+
 
                     for i in range(scale_number):
                         self.axes[7].plot(contri_record_df[:,0],

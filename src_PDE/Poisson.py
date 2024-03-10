@@ -27,12 +27,12 @@ class  PDE_base():
     def train(self,net=None):
         pass
 class PDE_PossionData(PDE_base):
-    def __init__(self,mu=15):
+    def __init__(self,mu=15,shape="square"):
         self.mu = mu
         self.d=2
         self.data_mse=nn.MSELoss()
         self.device= torch.device("cuda" if torch.cuda.is_available() else "cpu")
-       
+        self.shape =shape
 
     # Redefine the functions to accept a point (x, y) instead of a vector x
     def np_f(self,x, y):
@@ -80,12 +80,24 @@ class PDE_PossionData(PDE_base):
         # 确保 data 的相关列设置了 requires_grad=True  对于data：第0维度是x，t是1维度
 
 
-        u=net(pde_data)  # 计算网络输出
+        outputs = net(pde_data)  # 计算网络输出
+        
+        # 检查输出结果
+        if isinstance(outputs, tuple):
+            #moe 有3个输出
+            u, moe_loss, gates = outputs
+
+        else:
+            # 如果输出不是元组，假设它是单一输出
+            num_outputs = 1
+            u=outputs
+            moe_loss=0
+            gates=0
 
         grad_outputs = torch.ones_like(u)  # 创建一个与u形状相同且元素为1的张量
-
+ 
         # 计算一阶导数
-        du_data=grad(u,pde_data,grad_outputs,create_graph=True)[0]
+        du_data= grad(u,pde_data,grad_outputs,create_graph=True)[0]
         du_dy=du_data[:,1].unsqueeze(1)
         du_dx=du_data[:,0].unsqueeze(1)
         # 计算二阶导数
@@ -103,10 +115,10 @@ class PDE_PossionData(PDE_base):
 
         
         # 计算 PDE 残差
-        pde_loss =  nn.MSELoss()
-        loss=torch.mean((lfh+f)*(lfh+f))
+ 
+        loss = torch.mean((lfh+f)*(lfh+f))+moe_loss
 
-        return loss
+        return loss,moe_loss,gates
 
     def bc_loss(self,net,data):
         #data:[batch,2]
@@ -114,30 +126,111 @@ class PDE_PossionData(PDE_base):
         # lf.torch_u(x=inputs[:,0],t=inputs[:,1])  # 创建一个与u形状相同且元素为1的张量(,1)
         inputs=data
         outputs=net(data) # 计算网络输出
+         # 检查输出结果
+        if isinstance(outputs, tuple):
+            #moe 有3个输出
+            output, moe_loss, gates = outputs
 
+        else:
+            # 如果输出不是元组，假设它是单一输出
+            
+            num_outputs = 1
+            output=outputs
+            moe_loss=0
+            gates=0
+        
+        
         # 计算 MSE 损失
-        bc_mse = self.data_mse(outputs, self.torch_u(x=inputs[:,0:1],y=inputs[:,1:2]))
+        bc_mse = self.data_mse(output, self.torch_u(x=inputs[:,0:1],y=inputs[:,1:2])) + moe_loss
         
 
-        return bc_mse
+        return bc_mse,moe_loss,gates
 
     def data_loss(self,net,data):
         #data:[batch,2]
-        u = net(data)  # 计算网络输出
+        outputs = net(data)  # 计算网络输出
+         # 检查输出结果
+        if isinstance(outputs, tuple):
+            #moe 有3个输出
+            u, moe_loss, gates = outputs
+
+        else:
+            # 如果输出不是元组，假设它是单一输出
+            num_outputs = 1
+            u = outputs
+            moe_loss=0
+            gates=0
+        
         # 计算 MSE 损失
-        targets=self.torch_u(x=data[:,0:1],y=data[:,1:2])  # 创建一个与u形状相同且元素为1的张量(,1)
-        print("target",targets.shape)
+        targets=self.torch_u(x=data[:,0:1],y=data[:,1:2])+ moe_loss  # 创建一个与u形状相同且元素为1的张量(,1)
+        
 
         data_loss = self.data_mse(u,targets)
-        return data_loss
+        return data_loss,moe_loss,gates
+    
     def boundary(self,_,on_boundary):
 
         return on_boundary
+    def five_point_star_shape(self,theta):
+        """
+        Defines the radius function for a regular five-pointed star
+        as a function of angle theta.
+        """
+        # Convert polar to cartesian coordinates to use mod
+        x = np.cos(theta)
+        y = np.sin(theta)
+        
+        # Every other vertex is further from the center
+        # Adjust these values to change the star's appearance
+        radius_inner = 0.5  # Radius for inner vertices
+        radius_outer = 1.0  # Radius for outer vertices
+        
+        # Determine whether we are closer to an inner or an outer vertex
+        # Adjust the modulus operation to match five segments (360/5 = 72 degrees)
+        segment_angle = np.mod(np.arctan2(y, x), np.pi / 2.5)
+        if segment_angle < np.pi / 5:
+            return radius_outer
+        else:
+            return radius_inner
+
+
 
     def Get_Data(self,**kwagrs)->dde.data.PDE: #u(x,t)
         
-        self.geom = dde.geometry.Rectangle([-1, -1], [1, 1])
+        # 创建星形域
+        if self.shape == "square":
+            self.geom =  dde.geometry.Rectangle([-1, -1], [1, 1])
+        elif self.shape == "poly_with_hole":
+            vertices = np.array([
+                [0, 0],   # 左下角
+                [1, 0],   # 右下角
+                [1, 0.5], # 右侧中间凸起
+                [1.5, 1], # 右上角凸起
+                [1, 1.5], # 右侧中间凹槽
+                [1, 2],   # 右上角
+                [0, 2],   # 左上角
+                [-0.5, 1] # 左侧中间凹槽
+            ])
+            # 定义圆形洞的中心和半径
+            hole_center = [0.5, 1]  # 假设洞位于多边形的中心
+            hole_radius = 0.3  # 圆形洞的半径
 
+            # 使用Circle类创建圆形洞
+            circle_hole = dde.geometry.geometry_2d.Disk(hole_center, hole_radius)
+            # 使用Polygon类创建复杂多边形形状
+            complex_polygon = dde.geometry.Polygon(vertices)
+            # 使用CSGDifference从复杂多边形中减去圆形洞，创建一个新的几何形状
+            complex_polygon_with_hole = dde.geometry.CSGDifference(complex_polygon, circle_hole)
+            self.geom = complex_polygon_with_hole
+        elif self.shape == "Circle":
+            # 定义圆形洞的中心和半径
+            hole_center = [0, 0]  
+            hole_radius = 0.5  # 圆形洞的半径
+
+            # 使用Circle类创建圆形洞
+            circle_hole = dde.geometry.geometry_2d.Disk(hole_center, hole_radius)
+            self.geom = circle_hole
+        
         domain_numbers=kwagrs.get("domain_numbers",6400)
         boundary_numbers=kwagrs.get("boundary_numbers",2000)
         test_numbers=kwagrs.get("test_numbers",6400)
@@ -211,10 +304,10 @@ class PDE_PossionData(PDE_base):
 
         # 获取 usol 值
         if self.device =="cuda":
-             usol_net = model(data).cpu().detach().numpy()
+             usol_net = model(data)[0].cpu().detach().numpy()
             
         else:
-            usol_net = model(data).cpu().detach().numpy()
+            usol_net = model(data)[0].cpu().detach().numpy()
 
         # 绘制热力图
         sc=ax.scatter(x,y, c=usol_net, cmap="bwr",s=1)
@@ -265,12 +358,7 @@ if __name__ == "__main__":
     plt.xlabel('x coordinate')
     plt.ylabel('y coordinate')
 
-    # Right plot for u(x, y)
-    plt.subplot(1, 2, 2)
-    plt.scatter(x_coords, y_coords, c=u_values, cmap='magma')
-    plt.colorbar(label='u(x, y) value')
-    plt.title('u(x, y) over 1024 points')
-    plt.xlabel('x coordinate')
+    
     # plt.ylabel('y coordinate')  # Not needed on the right plot, shared y
     plt.show()
 

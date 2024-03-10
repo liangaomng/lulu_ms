@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from .nn_class import  Multi_scale2,Single_MLP
+from .nn_class import  Multi_scale2,Single_MLP,MoE_Multi_Scale
 from torch import optim
 from torch import nn
 from abc import abstractmethod
@@ -12,6 +12,8 @@ from .excel2yaml import Excel2yaml
 from .Analyzer import Analyzer4scale
 from .Plot import Plot_Adaptive
 from shutil import copy
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import Normalize
 
 #DDE_BACKEND=pytorch python Expr3_run.py  
 class RitzNet(torch.nn.Module):
@@ -134,6 +136,7 @@ class Expr_Agent(Expr):
 
         Excel2yaml(path=self.args.Save_Path,
                    excel=kwargs["Read_set_path"]).excel2yaml()  # convert 2yaml
+
         
         self.args.PDE = pde_task   #deepxde
 
@@ -146,11 +149,15 @@ class Expr_Agent(Expr):
         
         self._Random(seed=self.args.seed)
         self._Check()
+
         if self.args.PDE == "deepxde":
+            
             print("deepxde_model") #不用准备dataloader
             self.model = self.Prepare_model()
+            
         else:
             self.model = self.Prepare_model()
+            
 
         self.plot = Plot_Adaptive() # 画图
         self.solver=kwargs["solver"]
@@ -176,6 +183,9 @@ class Expr_Agent(Expr):
         args.Learn_scale=xls2_object["SET"].Learn_scale[0]
         args.PDE_py=xls2_object["SET"].PDE_Solver[0]
         args.Agent_py=xls2_object["SET"].Src_agent[0]
+        args.MOE = xls2_object["SET"].MOE[0]
+
+        args.sp_experts = int (xls2_object["SET"].Experts[0])
 
         
         #不一样的
@@ -249,36 +259,40 @@ class Expr_Agent(Expr):
     
     def Prepare_model(self):
 
+        scale_omegas_coeff = self.args.Scale_Coeff #[1,2,3]
+        layer_set=self.args.Layer_Set_list#[1, 10, 10, 10, 1]
+        multi_net_act=self.args.Act_Set_list #[4,3] 4个子网络，每个3层激活
+
+        multi_init_weight=self.args.Ini_Set_list #[4,3] 4个子网络，每个3层初始化
+        sub_layer_number=len(scale_omegas_coeff)
+        residual_en=self.args.Residual_Set_list #[4,3] 4个子网络，每个3层残差
+    
+
         if self.args.model == "mscalenn2":
-            scale_omegas_coeff = self.args.Scale_Coeff #[1,2,3]
-            layer_set=self.args.Layer_Set_list#[1, 10, 10, 10, 1]
-            multi_net_act=self.args.Act_Set_list #[4,3] 4个子网络，每个3层激活
-
-            multi_init_weight=self.args.Ini_Set_list #[4,3] 4个子网络，每个3层初始化
-            sub_layer_number=len(scale_omegas_coeff)
-            residual_en=self.args.Residual_Set_list #[4,3] 4个子网络，每个3层残差
-
-
+        
+            
+            # 普通的多尺度
             self.model = Multi_scale2(
-                sub_layer_number = np.array(sub_layer_number),
-                layer_set = np.array(layer_set[0]),#实际是4个list，每个list是一个子网络的神经元
-                act_set = np.array(multi_net_act),
-                ini_set = np.array(multi_init_weight),
-                residual= residual_en[0],
-                scale_number=scale_omegas_coeff,
-                scale_learn=self.args.Learn_scale#scale 学习
+            sub_layer_number = np.array(sub_layer_number),
+            layer_set = np.array(layer_set[0]),#实际是4个list，每个list是一个子网络的神经元
+            act_set = np.array(multi_net_act),
+            ini_set = np.array(multi_init_weight),
+            residual= residual_en[0],
+            scale_number=scale_omegas_coeff,
+            scale_learn=self.args.Learn_scale,#scale 学习
             )
-        if self.args.model == "fnn":
-            layer_set = self.args.Layer_Set_list#[1, 10, 10, 10, 1]
-            residual_en = self.args.Residual_Set_list
-            activation_set=self.args.Act_Set_list
-
-            self.model = Single_MLP(
-                input_size=layer_set[0],
-                layer_set= layer_set,
-                use_residual= residual_en,
-                activation_set= np.array(activation_set)
-            )
+            
+    
+        if self.args.model == "MOE":
+            #MOE
+                self.model = MoE_Multi_Scale( sub_layer_number = np.array(sub_layer_number),
+                    layer_set = np.array(layer_set[0]),#实际是4个list，每个list是一个子网络的神经元
+                    act_set = np.array(multi_net_act),
+                    ini_set = np.array(multi_init_weight),
+                    residual= residual_en[0],
+                    scale_number=scale_omegas_coeff,
+                    scale_learn=self.args.Learn_scale,
+                    sparse_experts= self.args.sp_experts)#scale 学习)
 
         return self.model
 
@@ -291,7 +305,88 @@ class Expr_Agent(Expr):
         # 检查保存路径, 如果没有就创建一个
         if not os.path.exists(self.args.Save_Path):
             os.makedirs(self.args.Save_Path)
+    def _save_gates_record(self,**kwargs):
+        
+        pde_gates = kwargs["p_gates"]
+        bc_gates = kwargs["b_gates"]
+        sub_omega = kwargs["sub_omega"]
+        # 设置画布和子图的布局
+        #一个2x2的子图布局
+        fig, axs = plt.subplots(2, 2, figsize=(25, 12))
 
+        # 展平axs数组以便轻松索引
+        axs = axs.flatten()
+
+        #colobar
+        im=axs[0].imshow(pde_gates, cmap='bwr',aspect="auto",vmin=0,vmax=0.5)
+        axs[0].set_title("pde_gates",fontsize=18 )
+        axs[1].imshow(bc_gates, cmap='bwr',aspect="auto",vmin=0,vmax=0.5)
+        axs[1].set_title("bc_gates",fontsize=18)
+        axs[2].set_xlabel('subnets',fontsize=15)
+        # 在特定的列上绘制虚线
+        num_columns = pde_gates.shape[1]
+        for col in range(num_columns):
+            axs[0].axvline(x=col, color='k', linestyle='--', linewidth=1)
+            axs[1].axvline(x=col, color='k', linestyle='--', linewidth=1)
+        # 使用ax[2]来画条形图
+        x_positions = np.arange(len(sub_omega))  # x位置为sub_omega中元素的索引
+        axs[2].bar(x=x_positions, height=sub_omega, label="omega value")  # 画条形图
+        axs[2].set_title("Scale Value and load",fontsize=18)
+        axs[2].set_xlabel('subnets',fontsize=15)
+        axs[2].set_ylabel('Value')
+        #负载
+        load = self.model.Moe_scale._record_load()
+        # 创建一个共享x轴但是有第二个y轴的子图
+        ax_right = axs[2].twinx()
+        # 计算每个点的y值（即每个数组的长度）
+        y_values = [arr.shape[0] for arr in load]
+
+        # 注意：这里我们使用了matplotlib的颜色映射。更亮的颜色表示更大的y值。
+        colors = plt.cm.rainbow(np.array(y_values) / max(y_values))
+        # 绘制散点图，其中颜色亮度基于y值
+        for i, y in enumerate(y_values):
+            if i == 0:
+                ax_right.scatter(x=i, y=y, color=colors[i],alpha=0.8,s=100,label="load")
+            else:
+                ax_right.scatter(x=i, y=y, color=colors[i],s=100,alpha=0.8)
+        # 添加虚线
+        # 使用plot函数绘制线条，并设置线型为'--'表示虚线
+        ax_right.plot(range(len(y_values)), y_values, '--', color='k')
+        axs[2].legend(loc="upper left",fontsize=14)
+        ax_right.legend(loc="upper right",fontsize=14)
+        # 添加颜色条
+        cbar = fig.colorbar(im, ax=axs[1])  # 将颜色条关联到显示图像的轴上
+        cbar.set_label('Gates Distribution',fontsize=15)  # 设置颜色条的标签
+        
+        
+         # 定义归一化对象，它会把y_values的值映射到0-1的范围内
+        norm = Normalize(vmin=np.min(sub_omega), vmax=np.max(sub_omega))
+        color_subnet = plt.cm.rainbow(norm(sub_omega))
+        
+
+        for i, y in enumerate(y_values):
+            coord_x=load[i][:,0].cpu().detach().numpy()
+
+            coord_y=load[i][:,1].cpu().detach().numpy()
+            axs[3].scatter(coord_x,coord_y, color=color_subnet[i],alpha=0.4,s=40,label=f"subnet_{i}")
+        # 调整图例
+        lgd = axs[3].legend(loc='upper left', bbox_to_anchor=(1.14, 1),fontsize=14) # 将图例移出图表外部
+
+        # 创建颜色条
+        sm = plt.cm.ScalarMappable(cmap='rainbow', norm=norm)
+        sm.set_array([])
+        # 创建颜色条
+        cbar = fig.colorbar(sm, ax=axs[3], orientation='vertical')
+        # 设置颜色条的标签和字体大小
+        cbar.set_label('Scale Value', fontsize=15)
+
+
+         # 调整整个画布布局，为颜色条留出空间
+        plt.subplots_adjust(right=0.9)
+        plt.tight_layout()
+        
+        plt.savefig('{}/gates_{}.png'.format(self.args.Save_Path, kwargs["epoch"]),dpi=300)
+        plt.close()
     def _update_loss_record(self, epoch,train_loss,type=None,**kwargs):
 
         # 保存画loss的值
@@ -305,13 +400,16 @@ class Expr_Agent(Expr):
                 pde_loss=kwargs["pde_loss"]
                 bc_loss=kwargs["bc_loss"]
                 data_loss=kwargs["data_loss"]
+                moe_loss=kwargs["moe_loss"]
                 train_loss=train_loss.detach().cpu().numpy()
                 test_loss=kwargs["test_loss"]
                 test_data=kwargs["test_data"]
                 sub_omega=kwargs["sub_omega"]
+                print("moe",moe_loss)
+                print("test_loss",test_loss)
             
-                record = np.array([[epoch, train_loss,test_loss,pde_loss,bc_loss,data_loss]])
-            
+                record = np.array([[epoch, train_loss,test_loss,pde_loss,bc_loss,data_loss,moe_loss]])
+
             
             # 检查文件是否存在
             if not os.path.isfile(self.args.Loss_Record_Path):
@@ -331,6 +429,12 @@ class Expr_Agent(Expr):
         #画图的间隔久
         if epoch % self.fig_save_interve == 0:
             self._save4plot(epoch, test_loss,test_data=test_data,type="deepxde",sub_omega=sub_omega)
+            if self.args.MOE:
+                self._save_gates_record(epoch=epoch,p_gates=kwargs["p_gates"],b_gates=kwargs["b_gates"],sub_omega=sub_omega)
+                #保存gates-
+                
+            
+                
 
     def _Valid(self,**kwargs):
 
@@ -417,8 +521,8 @@ class Expr_Agent(Expr):
         # 读取损失记录
         loss_record_npy = np.load(self.args.Loss_Record_Path, allow_pickle=True)
 
-        # 获取模型预测
-        pred = self.model(torch.from_numpy(x_test).float().to(self.device)).detach().cpu().numpy()
+        # 获取模型预测 tuple 后需要改
+        pred = self.model(torch.from_numpy(x_test).float().to(self.device))[0].detach().cpu().numpy()
     
 
         if x_test.shape[-1] == 1: #[500,1]
@@ -544,8 +648,6 @@ class Expr_Agent(Expr):
    
     def Train_XDE(self):
 
-
-
         #Copy the sover and agent to save
         des_file=self.args.Save_Path
         soure_file_solver=self.args.PDE_py
@@ -562,7 +664,6 @@ class Expr_Agent(Expr):
         print("train_data_penalty:{}".format(self.args.penalty_data))
         print("train_pde_penalty:{}".format(self.args.penalty_pde))
         print("train_bc_penalty:{}".format(self.args.penalty_boun))
-
 
                     
         for epoch in range(self.epoch):
@@ -588,18 +689,17 @@ class Expr_Agent(Expr):
             #inputs
             pde_data=torch.from_numpy(pde_data).float().to(self.device)
             pde_data.requires_grad=True
+            bc_data = torch.from_numpy(bc_data).float().to(self.device)
+            bc_data.requires_grad=True
             #pde loss
-            train_pde_loss=self.solver.pde_loss(net=self.model,pde_data=pde_data)
+            train_pde_loss,_,_ = self.solver.pde_loss(net=self.model,pde_data=pde_data)
             #bc loss
-            train_bc_loss=self.solver.bc_loss(net=self.model,data=train_data)
+            train_bc_loss,_,_= self.solver.bc_loss(net=self.model,data=bc_data)
             #data loss
-            train_data_loss=self.solver.data_loss(net=self.model,data=pde_data)
+            train_data_loss=self.solver.data_loss(net=self.model,data=train_data)
             train_loss =  self.args.penalty_pde*train_pde_loss
             train_loss += self.args.penalty_boun*train_bc_loss
-
-
-            print("train_data_loss",train_data_loss)
-                                
+            
             #train
             optimizer.zero_grad()
             train_loss.backward()
@@ -610,24 +710,46 @@ class Expr_Agent(Expr):
 
 
             #plot
+                
             if epoch % 1== 0:
                 test=self.solver.data.test_x
                 torch_test=torch.from_numpy(test).float().to(self.device)
 
-                data_loss = self.solver.data_loss(net=self.model, data=pde_data)
-                pde_loss=self.solver.pde_loss(net=self.model,pde_data=pde_data)
-                bc_loss=self.solver.bc_loss(net=self.model,data=train_data)
+                data_loss,d_moe_loss,d_gates = self.solver.data_loss(net=self.model, data=pde_data)
+                pde_loss,p_moe_loss,p_gates = self.solver.pde_loss(net=self.model,pde_data=pde_data)
+                bc_loss,b_moe_loss,b_gates=self.solver.bc_loss(net=self.model,data=bc_data)
+                moe_loss = p_moe_loss+b_moe_loss
                 #test loss only see the data loss
                 test_loss=bc_loss+pde_loss+data_loss 
-                print(f"epoch={epoch},testloss{test_loss:.6f} pde_loss:{pde_loss:.6f},bc{bc_loss:.6f},data_loss:{data_loss:.6f}",flush=True)
+                print(f"epoch={epoch},testloss{test_loss:.6f} pde_loss:{pde_loss:.6f},bc{bc_loss:.6f},data_loss:{data_loss:.6f},moe_loss:{moe_loss:.6f}",flush=True)
                 
-            self._update_loss_record(   epoch, train_loss=train_loss,type="deepxde",
-                                        pde_loss=pde_loss.item(),
-                                        bc_loss=bc_loss.item(),
-                                        data_loss=data_loss.item(),
-                                        test_loss=test_loss.item(),
-                                        test_data=torch_test,
-                                        sub_omega=self.model.sub_omegas.detach().cpu().numpy())
+                
+            if self.args.MOE:
+                
+                self._update_loss_record(epoch, train_loss=train_loss,type="deepxde",
+                                            pde_loss=pde_loss.item(),
+                                            bc_loss=bc_loss.item(),
+                                            data_loss=data_loss.item(),
+                                            test_loss=test_loss.item(),
+                                            test_data=torch_test,
+                                            sub_omega=self.model.sub_omegas.detach().cpu().numpy(),
+                                            moe_loss=moe_loss.item(),
+                                            p_gates = p_gates.cpu().detach().numpy(),
+                                            b_gates = b_gates.cpu().detach().numpy())
+            else:
+                self._update_loss_record(epoch, train_loss=train_loss,type="deepxde",
+                                            pde_loss=pde_loss.item(),
+                                            bc_loss=bc_loss.item(),
+                                            data_loss=data_loss.item(),
+                                            test_loss=test_loss.item(), 
+                                            test_data=torch_test,
+                                            sub_omega=self.model.sub_omegas.detach().cpu().numpy(),
+                                            moe_loss= torch.tensor(0),
+                                            p_gates = torch.tensor(0),
+                                            b_gates = torch.tensor(0))
+        
+
+                
                 
     def Do_Expr(self):
 

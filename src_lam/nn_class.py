@@ -4,12 +4,13 @@ import torch.nn as nn
 from  .act_fuction import *
 import numpy as np
 import copy
+from .MOE import *
 #mlp
 class Single_MLP(nn.Module):
     def __init__(self,
                  input_size,
                  layer_set:list,#[1,150,150,150,1] means 4 linear layers and 3 act
-                 use_residual=list,
+                 use_residual:list,
                  **kwargs):
         super(Single_MLP, self).__init__()
         self.layers = nn.ModuleList()
@@ -60,6 +61,35 @@ class Single_MLP(nn.Module):
 
         return x
 
+# Define the gating model
+class Gating(nn.Module):
+   def __init__(self, input_dim,
+               num_experts, dropout_rate=0.1):
+      super(Gating, self).__init__()
+
+      # Layers
+      self.layer1 = nn.Linear(input_dim, 128)
+      self.dropout1 = nn.Dropout(dropout_rate)
+
+      self.layer2 = nn.Linear(128, 256)
+      self.leaky_relu1 = nn.LeakyReLU()
+      self.dropout2 = nn.Dropout(dropout_rate)
+
+      self.layer4 = nn.Linear(128, num_experts)
+
+   def forward(self, x):
+      x = torch.relu(self.layer1(x))
+      x = self.dropout1(x)
+
+      x = self.layer2(x)
+      x = self.leaky_relu1(x)
+      x = self.dropout2(x)
+
+      x = self.layer3(x)
+      x = self.leaky_relu2(x)
+      x = self.dropout3(x)
+
+      return torch.softmax(self.layer4(x), dim=1)
 
 class Multi_scale2(nn.Module):
     """Fully-connected neural network."""
@@ -72,7 +102,7 @@ class Multi_scale2(nn.Module):
                  residual = False,
                  **kwargs):
         super().__init__()
-        scale_learn=kwargs["scale_learn"]#是否学习尺度系数
+        scale_learn = kwargs["scale_learn"]#是否学习尺度系数
         self.scale_number=len(scale_number)
         
         if "Siren" in act_set: #siren
@@ -85,6 +115,7 @@ class Multi_scale2(nn.Module):
                                outermost_linear=True
                               )
             self.Multi_scale=self._clones(one_layer,sub_layer_number) #复制4个网络
+            
         else:
             act_list= self._Return_act_list(act_set) #4个激活函数,module list,每个有3个激活函数
             kernel_method=self._Return_init_list(ini_set)#4个初始化方法，每个1个初始化方法
@@ -97,35 +128,37 @@ class Multi_scale2(nn.Module):
                                         activation_set=act_list[0])
             self.Multi_scale=self._clones(one_layer,sub_layer_number) #复制4个网络
             self._init4weights(kernel_method) #为了给每个网络，初始化权重
-
-      
-
+            
         self.sub_omegas=scale_number
         
         if scale_learn:# 可学习
             self.sub_omegas = torch.nn.Parameter(torch.tensor(self.sub_omegas, dtype=torch.float))
         else:
             self.sub_omegas = torch.tensor(self.sub_omegas, dtype=torch.float)
-  
             
+         # 计算并打印参数总量
+        total_params = sum(p.numel() for p in self.Multi_scale.parameters())
+        print(f'Total number of parameters: {total_params}')
             
-    
+        
 
     def forward(self, x):
         """定义前向传播。"""
         y=[]
+        
+        # Calculate the expert outputs
+        outputs = torch.stack(
+            [subnet(self.sub_omegas[index]*x) for index,subnet in enumerate(self.Multi_scale)], dim=2)
+        
 
-       
-        for index, subnet in enumerate(self.Multi_scale):
+        out= torch.sum(outputs, dim=2)
+        
+        #多尺度无moe_loss =0,gates =0
+        moe_loss = 0
+        gates = 0
+        
+        return out,moe_loss,gates
 
-            y.append(subnet(self.sub_omegas[index]*x))#
-
-      
-        out=torch.sum(torch.stack(y, dim=0), dim=0) 
-
-    
-    
-        return out
 
     def _Return_act_list(self,activation_set):
         #类方法，返回激活函数列表
@@ -143,9 +176,92 @@ class Multi_scale2(nn.Module):
             if isinstance(m, nn.Linear):
                 kernal_method[i](m.weight)
                 nn.init.zeros_(m.bias)
+
+class MoE_Multi_Scale(nn.Module):
+
+    def __init__(self,
+                 sub_layer_number,# 子网络个数
+                 layer_set,#[1,150,150,150,1] means 4 linear layers and 3 act
+                 act_set,#激活函数 4*3 4个子网络，每个子网络3层
+                 ini_set,#  4个子网络，每个1个初始化方法
+                 scale_number:list,# 4个子网络，每个1个尺度系数
+                 residual = False,
+                 **kwargs):
+        super().__init__()
+        scale_learn = kwargs["scale_learn"]#是否学习尺度系数
+        self.scale_number=len(scale_number)
+        #专家数量
+        num_experts = self.scale_number
+        #k专家
+        k= kwargs["sparse_experts"]
+
+        #稀疏网络
+        #experts_num = kwargs["experts"]
+    
+        one_layer = Siren( in_features=layer_set[0],
+                            out_features=layer_set[-1],
+                            hidden_features=layer_set[1],
+                            hidden_layers=len(layer_set)-1,
+                            outermost_linear=True
+                            )
+        self.Multi_scale=self._clones(one_layer,sub_layer_number) #复制4个网络
+            
+        act_list= self._Return_act_list(act_set) #4个激活函数,module list,每个有3个激活函数
+        kernel_method=self._Return_init_list(ini_set)#4个初始化方法，每个1个初始化方法
+        
+        print("scale_learn",scale_learn)
+
+        one_layer = Single_MLP(     input_size=layer_set[0],
+                                    layer_set=layer_set,
+                                    use_residual=residual,
+                                    activation_set=act_list[0])
+            
+        self.sub_omegas=scale_number
+        
+        if scale_learn:# 可学习
+            self.sub_omegas = torch.nn.Parameter(torch.tensor(self.sub_omegas, dtype=torch.float))
+        else:
+            self.sub_omegas = torch.tensor(self.sub_omegas, dtype=torch.float)
+            
+
+        self.Moe_scale = MoE (subnet=one_layer,input_size = layer_set[0],output_size=1
+                              ,num_experts = num_experts,scale_coeff = self.sub_omegas,
+                              k= k)
+        # 计算并打印参数总量
+        total_params = sum(p.numel() for p in self.Moe_scale.parameters())
+        print(f'Total number of parameters: {total_params}')
+
+
+
+    def forward(self, x):
+        """定义前向传播。"""
+        out,loss,gates = self.Moe_scale(x)
+        
+        return out,loss,gates
+
+
+    def _Return_act_list(self,activation_set):
+        #类方法，返回激活函数列表
+        return St_act_in_4_subnet_space.activations_get(activation_set)
+    def _Return_init_list(self,ini_set):
+
+        return St_act_in_4_subnet_space.weight_ini_method(ini_set)
+
+    def  _clones(self,module, N):
+        #重复N次，深拷贝
+        return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
+    def _init4weights(self,kernal_method):
+        #初始化权重
+        for i,m in enumerate(self.Multi_scale):
+            if isinstance(m, nn.Linear):
+                kernal_method[i](m.weight)
+                nn.init.zeros_(m.bias)
+
+
 if __name__=="__main__":
-    pass
-    #test
+    print("hi")
+
+    
 
 
 

@@ -35,7 +35,7 @@ for name_order in {16..20}; do
 
       echo $expr_floder/Expr_$seed.xlsx 
       
-      python Expr1_run.py --expr_set_path $expr_floder/Expr_$seed.xlsx --pde_name "${Task[0]}" --mu 15.0 --epoch 1 --fig_record_intereve 500 
+      python Expr1_run.py --expr_set_path $expr_floder/Expr_$seed.xlsx --pde_name "${Task[0]}" --mu 15.0 --epoch 10000 --fig_record_intereve 500 
       echo "expr: done seed:$seed  order:$name_order"
 
    done

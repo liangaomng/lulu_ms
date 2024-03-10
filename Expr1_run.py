@@ -16,6 +16,7 @@ if __name__=="__main__":
     parser.add_argument('--epoch', default=10000,type=int, help='epochs')
     parser.add_argument('--fig_record_intereve', default=500,type=int, help='fig save')
     
+    
     args = parser.parse_args()
     print("args",args)
 

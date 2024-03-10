@@ -43,7 +43,7 @@ class Analyzer4scale(Analyzer):
         self.contributions=self._analyze_scales()
         # 归一化 scale_coeffs 以便用于颜色映射
         norm = Normalize(vmin=min(self.scale_coeffs),
-                            vmax=max(self.scale_coeffs))
+                          vmax=max(self.scale_coeffs))
         normed_coeffs = norm(self.scale_coeffs)
         if ax is None:
             raise ValueError("ax must be specified")
@@ -55,7 +55,7 @@ class Analyzer4scale(Analyzer):
         elif cmap=="Purple":
             cmap = plt.cm.Purples
         for i, (contrib, coeff_norm) in enumerate(zip(self.contributions, normed_coeffs)):
-            ax.bar(i, contrib, color=cmap(coeff_norm),
+            ax.bar(i, contrib, color=cmap(5*coeff_norm),#加深
                     label=f'Scale {i}: Coeff {self.scale_coeffs[i]}')
             ax.text(i, contrib, f'{self.scale_coeffs[i]}',
                     ha='center', va='bottom',fontsize=7)

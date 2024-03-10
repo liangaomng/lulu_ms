@@ -62,21 +62,21 @@ class PDE_HelmholtzData(PDE_base):
         grad_outputs = torch.ones_like(u)  # 创建一个与u形状相同且元素为1的张量
 
         # 计算一阶导数
-        du_data=grad(u,pde_data,grad_outputs,create_graph=True)[0]
-        du_dy=du_data[:,1].unsqueeze(1)
-        du_dx=du_data[:,0].unsqueeze(1)
+        du_data = grad(u,pde_data,grad_outputs,create_graph=True)[0]
+        du_dy = du_data[:,1].unsqueeze(1)
+        du_dx = du_data[:,0].unsqueeze(1)
         # 计算二阶导数
-        ddu_ddata=grad(du_dx,pde_data,grad_outputs, create_graph=True)[0]
-        ddu_ddx=ddu_ddata[:,0]
-        ddu_ddy=grad(du_dy,pde_data,grad_outputs, create_graph=True)[0]
-        ddu_ddy=ddu_ddy[:,1]
+        ddu_ddata = grad(du_dx,pde_data,grad_outputs, create_graph=True)[0]
+        ddu_ddx = ddu_ddata[:,0]
+        ddu_ddy = grad(du_dy,pde_data,grad_outputs, create_graph=True)[0]
+        ddu_ddy = ddu_ddy[:,1]
         
       
-        ddu_ddx=ddu_ddx.reshape(-1,1)
-        ddu_ddy=ddu_ddy.reshape(-1,1)
-        lfh=ddu_ddx+ddu_ddy+(self.k0**2)*u
+        ddu_ddx = ddu_ddx.reshape(-1,1)
+        ddu_ddy = ddu_ddy.reshape(-1,1)
+        lfh = ddu_ddx+ddu_ddy+(self.k0**2)*u
     
-        f=self.torch_f(x=pde_data[:,0:1],y=pde_data[:,1:2])
+        f = self.torch_f(x=pde_data[:,0:1],y=pde_data[:,1:2])
 
     
         loss =torch.mean((lfh+f)*(lfh+f)*0.5)

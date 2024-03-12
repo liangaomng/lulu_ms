@@ -75,13 +75,13 @@ class Base_Args():
         self.Test_Dataset=None
         self.Save_Path=None
         self.batch_size=None
-        self._note=None
+
         self.Con_record=None
         self.Loss_Record_Path = None
         self.Con_Record_Path=None
         self.Omega_Record_Path=None
         
-        self.PDE=None #task
+        self.data_source=None #task
         self.fig_record_interve=None
         
         self.Domain_points=0
@@ -107,8 +107,13 @@ class Base_Args():
     def note(self,note):
         self._note=note
 class Multi_scale2_Args(Base_Args):
-    def __init__(self,scale_coff):
+    def __init__(self,scale_coff:list):
+        '''
+        eg scale_coff: [1,2,3] 子网络的系数
+        '''
         super().__init__()
+        assert type(scale_coff)==list, "scale coeff must be a list"
+
         self.subnets_number=len(scale_coff)#  确定后面数组的行，如果4个尺度，就是4行
         self.Scale_Coeff = scale_coff
         self.Act_Set_list = []
@@ -127,24 +132,29 @@ class Multi_scale2_Args(Base_Args):
     def Ini_Set(self,ini_set:list)->np.ndarray:
         #'Ini_Set': ['xavier_uniform']
         self.Ini_Set_list=ini_set
+    def __str__(self):
+        return  f"Multi_scale2_Args: {self.__dict__}"
+
 class Expr_Agent(Expr):
-    def __init__(self,pde_task=False,**kwargs):
+    def __init__(self,data_source=False,**kwargs):
+        '''
+            data_source: deepxde/selfpde
+s
+        '''
         super().__init__()
 
-        xls2_dict =Return_expr_dict.sheet2dict(kwargs["Read_set_path"])
-        self.args = self._read_arg_xlsx(xls2_dict,pde_task=pde_task) # 读取参数
+        config = kwargs["config"]
 
-        Excel2yaml(path=self.args.Save_Path,
-                   excel=kwargs["Read_set_path"]).excel2yaml()  # convert 2yaml
-
+        self.args = self._read_arg(config)
         
-        self.args.PDE = pde_task   #deepxde
+        self.args.data_source = data_source   #deepxde
 
         self.device= torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.model = None
         # 外面传入的参数 不用excel里面的参数
-        self.epoch = kwargs["train_epoch"]    
+        # 需要利用yaml参数
+        self.args.epoch = config['SET'][0]['Epoch']
         self.fig_save_interve= kwargs["fig_save_interve"]
         
         self._Random(seed=self.args.seed)
@@ -166,9 +176,13 @@ class Expr_Agent(Expr):
                              boundary_numbers=self.args.Boundary_points,
                              test_numbers=self.args.Test_points)
 
-    def _read_arg_xlsx(self,xls2_object:dict,**kwargs)->Multi_scale2_Args:
+    def _read_arg(self,config:dict,**kwargs)->Multi_scale2_Args:
+
         #共同参数
-        args=Multi_scale2_Args(xls2_object["SET"].Scale_Coeff)
+        print("args",config["SET"][0]['Scale_Coeff'])
+        scale_list = [float(x) for x in config["SET"][0]['Scale_Coeff'].split(',')]
+        args = Multi_scale2_Args(scale_coff=scale_list)
+    
         args.model=xls2_object["SET"].Model[0]
         args.lr=xls2_object["SET"].lr[0]
         args.seed=int(xls2_object["SET"].SEED[0])

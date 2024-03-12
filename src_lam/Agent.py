@@ -139,13 +139,15 @@ class Expr_Agent(Expr):
     def __init__(self,data_source=False,**kwargs):
         '''
             data_source: deepxde/selfpde
+            save_folder: name for the folder to save the expr
 s
         '''
         super().__init__()
 
         config = kwargs["config"]
+        folder_name = kwargs["save_folder"]
 
-        self.args = self._read_arg(config)
+        self.args = self._read_arg(config,folder_name)
         
         self.args.data_source = data_source   #deepxde
 
@@ -176,24 +178,36 @@ s
                              boundary_numbers=self.args.Boundary_points,
                              test_numbers=self.args.Test_points)
 
-    def _read_arg(self,config:dict,**kwargs)->Multi_scale2_Args:
+    def _read_arg(self,config:dict,floder_name:str,**kwargs)->Multi_scale2_Args:
 
+        '''
+        Here we handle with the args with the yaml file
+        '''
         #共同参数
         print("args",config["SET"][0]['Scale_Coeff'])
         scale_list = [float(x) for x in config["SET"][0]['Scale_Coeff'].split(',')]
+        section = [int(x) for x in config["SET"][0]['Section'].split(',')]
+
+
+
         args = Multi_scale2_Args(scale_coff=scale_list)
     
-        args.model=xls2_object["SET"].Model[0]
-        args.lr=xls2_object["SET"].lr[0]
-        args.seed=int(xls2_object["SET"].SEED[0])
-        args.epoch=int(xls2_object["SET"].Epoch[0])
-        args.fig_record_interve = int(xls2_object["SET"].Fig_Record_Interve[0])
-        args.Save_Path=xls2_object["SET"].Save_Path[0]
-        args.batch_size=int(xls2_object["SET"].Batch_size[0])
-        args.Con_record=xls2_object["SET"].Con_record #list
+        args.model = config["SET"][0]['Model']
+        args.lr = config["SET"][0]['lr']
+        args.seed=int(config["SET"][0]['Seed'])
+        args.epoch=int(config["SET"][0]['Epoch'])
+        args.fig_record_interve = int(config["SET"][0]['Fig_Record_Interve'])
+        args.Save_Path= config["SET"][0]['Save_Path'] + floder_name
+
+        print("save path:",args.Save_Path)
+        args.batch_size=int(config["SET"][0]['Batch_size'])
+
+        args.section = section #断面保存
+
         args.Loss_Record_Path = args.Save_Path + "/loss.npy"
-        args.Con_Record_Path = args.Save_Path + "/contribution.npy"
+        args.Contri_Record_Path = args.Save_Path + "/contribution.npy"
         args.Omega_Record_Path = args.Save_Path + "/omegas.npy"
+
         args.Learn_scale=xls2_object["SET"].Learn_scale[0]
         args.PDE_py=xls2_object["SET"].PDE_Solver[0]
         args.Agent_py=xls2_object["SET"].Src_agent[0]

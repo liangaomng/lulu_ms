@@ -10,6 +10,7 @@ if __name__=="__main__":
     # 设置命令行参数
     parser = argparse.ArgumentParser(description="Load configuration from YAML")
     parser.add_argument('--config_yaml', type=str, help='Path to the configuration YAML file')
+    parser.add_argument('--save_folder', type=str, help='folder name')
 
     args = parser.parse_args()
 
@@ -32,9 +33,10 @@ if __name__=="__main__":
        assert False, "PDE name not found"
     
     expr = Expr_Agent(
-        pde_task = "deepxde",
+        data_source = "deepxde",
         solver = solver,
-        config = config
+        config = config,
+        save_folder = args.save_folder
     )
 
     expr.Do_Expr()

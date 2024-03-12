@@ -1,7 +1,7 @@
 SET:
 - Batch_size: 1
   Boundary_points: 2500
-  Con_record: 0,1000,4500
+  Section: 0,1000,4500
   Domain_points: 6400
   Epoch: 10000
   Fig_Record_Interve: 500
@@ -11,7 +11,7 @@ SET:
   Penalty_boundary: 1000
   Penalty_data: 0
   Penalty_pde: 1
-  SEED: 42
+  Seed: 42
   Save_Path: Result/Poisson/
   Scale_Coeff: 1,2,4,8,16,32,64,128,256
   Src_agent: src_lam/Agent.py

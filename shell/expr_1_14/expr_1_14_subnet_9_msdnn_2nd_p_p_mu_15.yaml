@@ -20,7 +20,7 @@ SET:
   Test_points: 6400
   lr: 0.001
   mu: 15
-  shape: square
+  shape: poly_with_hole
   Task: deepxde #deepxde
   Note: This is to test mscalednn in contribution of each scale
   MOE: false

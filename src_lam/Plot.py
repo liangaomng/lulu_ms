@@ -15,44 +15,51 @@ class Plot_Adaptive:
         self.axes = []
 
         # 添加跨列的子图
-        for r in range(nrow - 1):
-            ax = self.fig.add_subplot(gs[r, :])
-            self.axes.append(ax)
-
-        # 添加最后一行的子图
+           # 第一行的图
         for c in range(ncol):
-            ax = self.fig.add_subplot(gs[-1, c])
-            
+            ax = fig.add_subplot(gs[0, c])
+            axes.append(ax)
+        # 添加第2行的图，使用整个列跨度，调整高度
+        ax = fig.add_subplot(gs[1, :])
+        axes.append(ax)
+
+        if ncol >= 2:
+            # 第三行的两个子图，根据需要调整跨度和位置
+            ax1 = fig.add_subplot(gs[-1, :ncol//2])  # 假设第一个子图占据左半边
+            ax2 = fig.add_subplot(gs[-1, ncol//2:])  # 假设第二个子图占据右半边
+            axes.extend([ax1, ax2])
+                
          
             self.axes.append(ax)
           
 
     def _create_subplot_grid2(self,nrow, ncol):
-        self.fig = plt.figure(figsize=(1.6 * ncol * 3, 1.4 * nrow * 3))
+        self.fig = plt.figure(figsize=(2.2 * ncol * 3, 1.8 * nrow * 3))
         gs = GridSpec(nrow, ncol, figure=self.fig, hspace=0.4, wspace=0.3)
         self.axes = []
 
+        # 添加第一行的子图，每列一个
         for c in range(ncol):
             ax = self.fig.add_subplot(gs[0, c])
             self.axes.append(ax)
 
-        # 添加第2行的图
-        for r in [1]:
-            ax = self.fig.add_subplot(gs[r, :])
-            self.axes.append(ax)
-        
+        # 添加第二行的子图，使用整个列跨度
+        ax = self.fig.add_subplot(gs[1, :])
+        self.axes.append(ax)
 
-        # 添加倒数第二行的子图
-        for c in range(ncol):
-            ax = self.fig.add_subplot(gs[-2, c])
-            self.axes.append(ax)
-        
-        for r in [3]:
-            ax = self.fig.add_subplot(gs[r, :])
-            ax2=ax.twinx()
-            self.axes.append(ax)
-            self.axes.append(ax2)
+        # 确保第三行的子图大小一致
+        if ncol >= 2:
+            # 第三行的两个子图，平均分配列跨度
+            mid_point = ncol // 2 if ncol % 2 == 0 else ncol // 2 + 1
+            ax1 = self.fig.add_subplot(gs[2:4, :mid_point])  # 第一个子图占据左半边
+            ax2 = self.fig.add_subplot(gs[2:4, mid_point:])  # 第二个子图占据右半边
+            self.axes.extend([ax1, ax2])
 
+         
+
+          
+          
+        
             
     def plot_1d(self,nrow,ncol,**kwagrs):
         # 绘制一些示例数据
@@ -137,13 +144,15 @@ class Plot_Adaptive:
         # 绘制一些示例数据
         c_map = ["Green", "Blue", "Purple"]
         # 从kwagrs中获取参数
-        analyzer = kwagrs["analyzer"]
+      
         #画图计算的solver
         solver=kwagrs["solver"]
         model=kwagrs["model"]
         if self.fig is None:
             self._create_subplot_grid2(nrow, ncol)
-        Record = kwagrs["contribution_record"]
+        contri_value = kwagrs["contr_record"]
+        omega_value= kwagrs["omega_record"]
+
       
 
         for i, ax in enumerate(self.axes):
@@ -170,7 +179,7 @@ class Plot_Adaptive:
                 data=solver.data.test_x
                 
                 #x轴实际是t【:,1】
-                sc=self.axes[2].scatter(data[:,0],data[:,1],c=np.abs(U_pred-U_true),cmap="bwr",s=1.5)
+                sc=self.axes[2].scatter(data[:,0],data[:,1],c=np.abs(U_pred-U_true),cmap="bwr",s=2)
                 # 添加颜色条
                 cb3=plt.colorbar(sc, ax=self.axes[2], label='Absolute Difference')
 
@@ -178,7 +187,8 @@ class Plot_Adaptive:
                 self.axes[2].set_xticks([])
                 self.axes[2].set_yticks([])
                 # 设置第一个子图的图例、坐标轴标签和标题
-                self.axes[2].set_title("Loss={:.6f}_Epoch{}".format(avg_test_loss, epoch))
+                mse = np.mean((U_pred - U_true) ** 2)
+                self.axes[2].set_title("MSE={:.6f}_Epoch{}".format(mse, epoch),fontsize=14)
 
 
             if i == 3:  # 第二张图
@@ -194,7 +204,7 @@ class Plot_Adaptive:
                 ax.plot(loss_record_df[:,0], loss_record_df[:,4], label="Boundary Loss", color="black",marker="+")
                 ax.plot(loss_record_df[:,0], loss_record_df[:,5], label="Data Loss", color="#FF4500",marker="o")
             
-                # # 画三条虚线
+                # # 画三条虚线 得到最小损失的点
                 if epoch >= 1:
                     # for j, value in enumerate(Record):
                     #     ax.axvline(x=value, color=c_map[j], linestyle='--')
@@ -234,104 +244,60 @@ class Plot_Adaptive:
                 ax.get_xaxis().get_major_formatter().set_useOffset(False)
                 ax.tick_params(labelsize=13, width=2, colors='black')
                 ax.set_title("Loss_Epoch{}".format(epoch))
-            if i == 4:  # 第三行图开始画贡献度
-                pass
-                # #我们这里记录一些贡献度 随着epoch记录 --山脊
-                # contri_path=kwagrs["contribution_record_path"]
-                # omege_value=kwagrs["omega"]
-                # omega_path=kwagrs["omega_value_path"]
-                # contributions=analyzer._analyze_scales()
-                # #Now, to combine them into a single list:
-                # combined_data = [epoch] + contributions
-        
-                # omege_value_new=[epoch]+omege_value.tolist()
-        
-                # omege_value_array=  np.array([omege_value_new])
+            if i == 4:  # 保存
+                # 归一化contri值 因为【epoch,9】，对每一个epoch做归一化 对每一行
+            
 
-        
-                # # To create a numpy array from this combined data:
-                # contri_array = np.array([combined_data])  # Note the brackets to create a two-dimensional array
+                epsilon = 1e-10  # 一个非常小的正数，防止分母为零
 
-                # # 检查文件是否存在
-                # if not os.path.isfile(omega_path and contri_path):
-                #     np.save(omega_path,omege_value_array)
-                #     np.save(contri_path, contri_array)
-                    
-                # else:
-                #     # 读取现有文件
-                #     for path,data in zip([contri_path,omega_path],[contri_array,omege_value_array]):
-                        
-                #         existing_data = np.load(path,allow_pickle=True)
-                        
-                #         # 过滤掉与当前 epoch 相同的记录
-                #         existing_data = existing_data[existing_data[:, 0] != epoch]
-                #         # 将新记录追加到现有数据中
-                #         updated_data = np.vstack((existing_data, data))
-                #         # 保存更新后的数据
-                #         np.save(path, updated_data)
-                # if (epoch == Record[0]):
-                #     analyzer.plot_contributions(ax=self.axes[4], fig=self.fig, cmap=c_map[0])
-                
-            # if i == 5:
-            #     if (epoch == Record[1]):
-            #         analyzer.plot_contributions(ax=self.axes[5], fig=self.fig, cmap=c_map[1])
-            # if i == 6:
-            #     if (epoch == Record[2]):
-            #         # for j in epoch_axv:
-            #         analyzer.plot_contributions(ax=self.axes[6], fig=self.fig, cmap=c_map[2])
-            if i== 7:
+                min_values = np.amin(contri_value[:,1:], axis=1, keepdims=True)
+                max_values = np.amax(contri_value[:,1:], axis=1, keepdims=True)
+
+                range_values = max_values - min_values + epsilon  # 加上 epsilon 避免分母为零
+                contri_normalized = (contri_value[:,1:] - min_values) / range_values
+
+             
+                cb4 = ax.matshow(contri_normalized,cmap='bwr', aspect='auto', vmin=0, vmax=0.3)
+
+                # 设置轴标签和标题
+                if epoch ==0:
+                    cb_handel = plt.colorbar(cb4, ax=ax, label='Norm contri Value')
+                    cb_handel.set_label('Norm contri Value', size=18)  # Correct way to set the label
+
+                #rows = contri_normalized.shape[0] #epochs
+                # for i in range(rows):
+                #     min_index = np.argmin(contri_normalized[i, :])
+                #     # 这里画的位置需要反一下
+                #     rect = plt.Rectangle(( min_index-0.5,i-0.5), 1, 1, edgecolor='k', facecolor='none',linestyle='--', linewidth=2)
+                #     ax.add_patch(rect)
+                record_inter =kwagrs['record_interve']
+                ax.set_ylabel(f'Epoch x{record_inter}',fontsize=15)
+                ax.set_xlabel('Subnets',fontsize=15)
+                ax.set_title('Normalized contri Values per Epoch for Mscale',fontsize=18)
+
                
-                if(epoch%10==0):
-                    #读取贡献度
-                    pass
-                    # contri_record_df=np.load(contri_path,allow_pickle=True)
-                     
-        
-                    # scale_number=contri_record_df.shape[1]-1 #减去epoch
-                    # omege_value=np.load(omega_path,allow_pickle=True)#[epoch,3]
- 
-                    # # 定义15种颜色
-                    # # The above code is creating a list called "colors" that contains several color names.
-                    # colors = [
-                    # 'blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'orange', 'purple', 
-                    # 'pink', 'brown', 'grey', 'lime', 'indigo', 'violet', 'teal', 'maroon', 'olive', 
-                    # 'navy', 'coral', 'turquoise', 'salmon', 'gold', 'ivory', 'beige', 'mint', 'lavender', 
-                    # 'charcoal', 'peach', 'amber', 'sienna', 'plum', 'emerald', 'cerulean', 'mauve']
+            if i ==5: #开始画omega 演化
 
+                # 第一列是epoch
+                cb5 = ax.matshow(omega_value[:,1:],cmap='rainbow', aspect='auto', vmin=0, vmax=np.max(omega_value[:,1:]))
+                # 设置轴标签和标题
+    
+                # 添加颜色条
+                if epoch ==0:
+                    cb5_handle = plt.colorbar(cb5, ax=ax)
+                    cb5_handle.set_label('Omega Value', size=18)
+                ax.set_ylabel(f'Epoch x{record_inter}',fontsize=15)
+                ax.set_xlabel('Subnets omegas',fontsize=14)
+                ax.set_title('Omegas of Mscale',fontsize=18)
+               
 
-                    # for i in range(scale_number):
-                    #     self.axes[7].plot(contri_record_df[:,0],
-                    #                       contri_record_df[:,i+1],
-                    #                       label=f"scale_{i+1}_contri",
-                    #                       color=colors[i],
-                    #                       linestyle='--',
-                    #                       zorder=2)
-                        
-                    #     self.axes[8].plot(omege_value[:,0],#epoch
-                    #              omege_value[:,i+1], 
-                    #              label=f'omega__{i+1}_value', 
-                    #              marker='>'
-                    #              ,color=colors[i],
-                    #              zorder=2,linewidth=1)
-                             
-                  
-                    # leg1=self.axes[7].legend(loc="upper left", fontsize=8)
-                    # leg2=self.axes[8].legend(loc="upper right", fontsize=8)
-                    # leg1.set_zorder(3)
-                    # leg2.set_zorder(3)
-                    # # 设置第二个子图的图例、坐标轴标签和标题\
-                    # self.axes[7].set_xlabel('Epoch', fontsize=16)
-                    # self.axes[7].set_ylabel('Contribution', fontsize=8)
-                    # self.axes[7].set_title("Contribution_scale_Epoch")
-                    # # For y-axis
-                    #  #找到最大和最小的值
-                    # # 计算这四列（第二列到第五列）的最大值和最小值
-                    # min_value_four_columns = np.amin(data[:, 1:])
-                    # max_value_four_columns = np.amax(data[:, 1:])
-                    # self.axes[8].set_ylim(min_value_four_columns-1,max_value_four_columns+1)
+    
+                
+                                 
+               
+                
 
-
-        return self.fig, self.axes,[cb1,cb2,cb3]
+        return self.fig, self.axes,[cb1,cb2,cb3,cb4,cb5]
 
     # 使用示例
 if __name__ == '__main__':

@@ -26,14 +26,14 @@ if __name__=="__main__":
     np.random.seed(1234)
     print(config['SET'][0]['Note'])
 
-    if config['SET'][0]['task'] == "poisson":
+    if config['SET'][0]['Task'] == "deepxde":
         print("Poisson")
         solver= PDE_PossionData(mu=config['SET'][0]['mu'],shape=config['SET'][0]['shape'])
     else:
        assert False, "PDE name not found"
     
+
     expr = Expr_Agent(
-        data_source = "deepxde",
         solver = solver,
         config = config,
         save_folder = args.save_folder

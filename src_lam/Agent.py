@@ -14,7 +14,7 @@ from .Plot import Plot_Adaptive
 from shutil import copy
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
-
+from .Analyzer import Analyzer4scale
 #DDE_BACKEND=pytorch python Expr3_run.py  
 class RitzNet(torch.nn.Module):
     def __init__(self, params):
@@ -83,6 +83,8 @@ class Base_Args():
         
         self.data_source=None #task
         self.fig_record_interve=None
+
+        self.Task=None
         
         self.Domain_points=0
         self.Boundary_points=0
@@ -136,7 +138,8 @@ class Multi_scale2_Args(Base_Args):
         return  f"Multi_scale2_Args: {self.__dict__}"
 
 class Expr_Agent(Expr):
-    def __init__(self,data_source=False,**kwargs):
+
+    def __init__(self,**kwargs):
         '''
             data_source: deepxde/selfpde
             save_folder: name for the folder to save the expr
@@ -148,21 +151,20 @@ s
         folder_name = kwargs["save_folder"]
 
         self.args = self._read_arg(config,folder_name)
-        
-        self.args.data_source = data_source   #deepxde
+
+
 
         self.device= torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.model = None
-        # 外面传入的参数 不用excel里面的参数
+
         # 需要利用yaml参数
         self.args.epoch = config['SET'][0]['Epoch']
-        self.fig_save_interve= kwargs["fig_save_interve"]
         
         self._Random(seed=self.args.seed)
         self._Check()
 
-        if self.args.PDE == "deepxde":
+        if self.args.Task == "deepxde":
             
             print("deepxde_model") #不用准备dataloader
             self.model = self.Prepare_model()
@@ -187,8 +189,10 @@ s
         print("args",config["SET"][0]['Scale_Coeff'])
         scale_list = [float(x) for x in config["SET"][0]['Scale_Coeff'].split(',')]
         section = [int(x) for x in config["SET"][0]['Section'].split(',')]
-
-
+        act_list = [str(x) for x in config["Subnet"][0]['Act_Set'].split(',')]
+        layer_list = [int(x) for x in config["Subnet"][0]['Layer_Set'].split(',')]
+        Init_list =[str(x) for x in config["Subnet"][0]['Ini_Set'].split(',')]
+        Residual_list =config["Subnet"][0]['Residual']
 
         args = Multi_scale2_Args(scale_coff=scale_list)
     
@@ -197,6 +201,7 @@ s
         args.seed=int(config["SET"][0]['Seed'])
         args.epoch=int(config["SET"][0]['Epoch'])
         args.fig_record_interve = int(config["SET"][0]['Fig_Record_Interve'])
+        args.record_interve = int(config["SET"][0]['Record_Interve'])
         args.Save_Path= config["SET"][0]['Save_Path'] + floder_name
 
         print("save path:",args.Save_Path)
@@ -205,22 +210,27 @@ s
         args.section = section #断面保存
 
         args.Loss_Record_Path = args.Save_Path + "/loss.npy"
-        args.Contri_Record_Path = args.Save_Path + "/contribution.npy"
+        args.Con_Record_Path = args.Save_Path + "/contribution.npy"
         args.Omega_Record_Path = args.Save_Path + "/omegas.npy"
 
-        args.Learn_scale=xls2_object["SET"].Learn_scale[0]
-        args.PDE_py=xls2_object["SET"].PDE_Solver[0]
-        args.Agent_py=xls2_object["SET"].Src_agent[0]
-        args.MOE = xls2_object["SET"].MOE[0]
+        args.Learn_scale = config["SET"][0]['Learn_scale']
+        args.PDE_py = config["SET"][0]['PDE_Solver']
+        args.Agent_py = config["SET"][0]['Src_agent']
+        args.MOE = config["SET"][0]["MOE"]
+        args.Task = config["SET"][0]["Task"]
 
-        args.sp_experts = int (xls2_object["SET"].Experts[0])
+        if args.MOE:  
+            
+            args.sp_experts = int (config["SET"][0]["sp_k"])
+            print(f"using moe and sparse experts:",args.sp_experts)
 
         
-        #不一样的
-        if kwargs["pde_task"] == False:#拟合任务
-            args.Train_Dataset=xls2_object["SET"].Train_Dataset[0]
-            args.Valid_Dataset=xls2_object["SET"].Valid_Dataset[0]
-            args.Test_Dataset=xls2_object["SET"].Test_Dataset[0]
+        #不一样的任务
+        if args.Task == "fitting":#拟合任务
+            # path about .pt
+            args.Train_Dataset= config["SET"][0]['Train_Dataset']
+            args.Valid_Dataset= config["SET"][0]['Valid_Dataset']
+            args.Test_Dataset= config["SET"][0]['Test_Dataset']
 
             self._valid_dataset = torch.load(self.args.Valid_Dataset)
             self._test_dataset = torch.load(self.args.Test_Dataset)
@@ -235,47 +245,26 @@ s
             self._test_loader = DataLoader(dataset=self._test_dataset,
                                            batch_size=self.args.batch_size,
                                            shuffle=True)
+            args.penalty_data = config["SET"][0]['Penalty_data']
 
-        if kwargs["pde_task"] =="selfpde":
-            args.Valid_Dataset = xls2_object["SET"].Valid_Dataset[0]
-            args.Test_Dataset = xls2_object["SET"].Test_Dataset[0]
-            args.penalty=xls2_object["SET"].Penalty[0]
-            args.Boundary_samples=int(xls2_object["SET"].Sum_Samples[0]-
-                                      xls2_object["SET"].Domain_Numbers[0])
-            args.All_samples=int(xls2_object["SET"].Sum_Samples[0])
-            self._valid_dataset = torch.load(self.args.Valid_Dataset)
-            self._train_dataset = None
-            self._train_loader = None
-            self._valid_loader = DataLoader(dataset=self._valid_dataset,
-                                            batch_size=self.args.batch_size,
-                                            shuffle=True)
-            self._test_loader = DataLoader(dataset=self._test_dataset,
-                                            batch_size=self.args.batch_size,
-                                            shuffle=True)
+        #pde 任务
+        elif args.Task =="deepxde" or "selfpde":
+            args.penalty_boun = config["SET"][0]['Penalty_boundary']
+            args.penalty_pde = config["SET"][0]['Penalty_pde']
+            args.penalty_data = config["SET"][0]['Penalty_data'] #0
+            assert args.penalty_data== 0,"In pde task, the data loss is 0"
+            args.Boundary_points = config["SET"][0]['Boundary_points']
+            args.Domain_points = config["SET"][0]['Domain_points']
+            args.Test_points = config["SET"][0]['Test_points']
 
-        if kwargs["pde_task"] =="deepxde":
-            self._train_dataset = None
-            self._train_loader = None
-            self._valid_dataset = None
-            self._valid_loader = None
-            self._test_dataset=None
-            self._test_loader = None
-
-        #loss
-        if kwargs["pde_task"]=="deepxde" or kwargs["pde_task"]=="selfpde":
-            args.penalty_boun=xls2_object["SET"].Penalty_boundary[0]
-            args.penalty_pde=xls2_object["SET"].Penalty_pde[0]
-            args.penalty_data=xls2_object["SET"].Penalty_data[0]
-            args.Boundary_points=int(xls2_object["SET"].Boundary_points[0])
-            args.Domain_points=int(xls2_object["SET"].Domain_points[0])
-            args.Test_points=int(xls2_object["SET"].Test_points[0])
-        #  收集子网络的信息,这里我们假设子网络都一样
+        # 收集子网络的信息,这里我们假设结构都一样
         for i in range(int(args.subnets_number)):
-            sub_key="Subnet"
-            args.Act_Set_list.append(xls2_object[sub_key].Act_Set)
-            args.Layer_Set_list.append(xls2_object[sub_key].Layer_Set)
-            args.Ini_Set_list.append(xls2_object[sub_key].Ini_Set)
-            args.Residual_Set_list.append(xls2_object[sub_key].Residual)
+
+            args.Act_Set_list.append(act_list)
+            args.Layer_Set_list.append(layer_list)
+            args.Ini_Set_list.append(Init_list)
+            args.Residual_Set_list.append(Residual_list)
+
 
         return args
     
@@ -288,12 +277,12 @@ s
     def Prepare_model(self):
 
         scale_omegas_coeff = self.args.Scale_Coeff #[1,2,3]
-        layer_set=self.args.Layer_Set_list#[1, 10, 10, 10, 1]
-        multi_net_act=self.args.Act_Set_list #[4,3] 4个子网络，每个3层激活
+        layer_set = self.args.Layer_Set_list#[1, 10, 10, 10, 1]
+        multi_net_act = self.args.Act_Set_list #[4,3] 4个子网络，每个3层激活
 
-        multi_init_weight=self.args.Ini_Set_list #[4,3] 4个子网络，每个3层初始化
-        sub_layer_number=len(scale_omegas_coeff)
-        residual_en=self.args.Residual_Set_list #[4,3] 4个子网络，每个3层残差
+        multi_init_weight = self.args.Ini_Set_list #[4,3] 4个子网络，每个3层初始化
+        sub_layer_number = len(scale_omegas_coeff)
+        residual_en = self.args.Residual_Set_list #[4,3] 4个子网络，每个3层残差
     
 
         if self.args.model == "mscalenn2":
@@ -301,15 +290,15 @@ s
             
             # 普通的多尺度
             self.model = Multi_scale2(
-            sub_layer_number = np.array(sub_layer_number),
-            layer_set = np.array(layer_set[0]),#实际是4个list，每个list是一个子网络的神经元
-            act_set = np.array(multi_net_act),
-            ini_set = np.array(multi_init_weight),
-            residual= residual_en[0],
-            scale_number=scale_omegas_coeff,
-            scale_learn=self.args.Learn_scale,#scale 学习
-            )
-            
+                                        sub_layer_number = np.array(sub_layer_number),
+                                        layer_set = np.array(layer_set[0]),#实际是4个list，每个list是一个子网络的神经元
+                                        act_set = np.array(multi_net_act),
+                                        ini_set = np.array(multi_init_weight),
+                                        residual= residual_en[0],
+                                        scale_number=scale_omegas_coeff,
+                                        scale_learn=self.args.Learn_scale,#scale 学习
+                                        )
+                
     
         if self.args.model == "MOE":
             #MOE
@@ -326,13 +315,15 @@ s
 
     def _Check(self):
         # 检查读取路径
-        if self.args.PDE == False:
+        if self.args.Task == "fitting":
             if not os.path.exists(self.args.Train_Dataset):
                 raise FileNotFoundError("Train_Dataset not found")
 
         # 检查保存路径, 如果没有就创建一个
         if not os.path.exists(self.args.Save_Path):
             os.makedirs(self.args.Save_Path)
+        
+
     def _save_gates_record(self,**kwargs):
         
         pde_gates = kwargs["p_gates"]
@@ -415,16 +406,16 @@ s
         
         plt.savefig('{}/gates_{}.png'.format(self.args.Save_Path, kwargs["epoch"]),dpi=300)
         plt.close()
-    def _update_loss_record(self, epoch,train_loss,type=None,**kwargs):
+    def _update_loss_record(self, epoch,train_loss,**kwargs):
 
         # 保存画loss的值
-        if epoch % 10 == 0:
-            if type!="deepxde":
+        if epoch % self.args.record_interve == 0:
+            if self.args.Task == "fitting": 
                 valid_loss=self._Valid(epoch=epoch,num_epochs=self.args.epoch)
                 test_loss =self._Test4Save(epoch=epoch)
                 record = np.array([[epoch, train_loss, valid_loss, test_loss]])
             #deepxde 在外面算test loss包括pde loss/data loss/ bc loss
-            elif type=="deepxde":
+            elif self.args.Task == "deepxde":
                 pde_loss=kwargs["pde_loss"]
                 bc_loss=kwargs["bc_loss"]
                 data_loss=kwargs["data_loss"]
@@ -432,9 +423,7 @@ s
                 train_loss=train_loss.detach().cpu().numpy()
                 test_loss=kwargs["test_loss"]
                 test_data=kwargs["test_data"]
-                sub_omega=kwargs["sub_omega"]
-                print("moe",moe_loss)
-                print("test_loss",test_loss)
+                sub_omega= self.model.sub_omegas.detach().cpu().numpy()
             
                 record = np.array([[epoch, train_loss,test_loss,pde_loss,bc_loss,data_loss,moe_loss]])
 
@@ -454,9 +443,50 @@ s
                 np.save(self.args.Loss_Record_Path, updated_data)
 
             self._CheckPoint(epoch=epoch)
+        #计算contri的值
+        if epoch % 10 == 0:
+            analyzer = Analyzer4scale(model=self.model,d=2,scale_coeffs=self.args.Scale_Coeff)
+            contributions = analyzer._analyze_scales()
+            # 先创建一个包含 epoch 和 contributions 所有值的列表
+            combined_data = [epoch] + contributions     
+            # 然后将这个列表转换成一个 numpy 数组，并确保它是二维的
+            record = np.array([combined_data])
+
+            if not os.path.isfile(self.args.Con_Record_Path):
+
+                np.save(self.args.Con_Record_Path, record)
+
+            else:
+
+                existing_data = np.load(self.args.Con_Record_Path)
+                existing_data = existing_data[existing_data[:, 0] != epoch]
+                updated_data = np.vstack((existing_data, record)
+                )
+                np.save(self.args.Con_Record_Path, updated_data)
+        #记录omega
+        if epoch % 10 == 0:
+
+            sub_omega =  self.model.sub_omegas.cpu().detach().numpy()
+            combine_data = [epoch] + sub_omega.tolist()
+
+            record = np.array([combine_data])
+
+            if not os.path.isfile(self.args.Omega_Record_Path):
+
+                np.save(self.args.Omega_Record_Path, record)
+
+            else:
+                existing_data = np.load(self.args.Omega_Record_Path)
+                existing_data = existing_data[existing_data[:, 0] != epoch]
+                updated_data = np.vstack((existing_data, record)
+                )
+                np.save(self.args.Omega_Record_Path, updated_data)
+                
         #画图的间隔久
-        if epoch % self.fig_save_interve == 0:
+        if epoch % self.args.fig_record_interve == 0:
+
             self._save4plot(epoch, test_loss,test_data=test_data,type="deepxde",sub_omega=sub_omega)
+
             if self.args.MOE:
                 self._save_gates_record(epoch=epoch,p_gates=kwargs["p_gates"],b_gates=kwargs["b_gates"],sub_omega=sub_omega)
                 #保存gates-
@@ -546,9 +576,14 @@ s
             x_test = test_data.cpu().numpy() #[..,2]
 
 
+
         # 读取损失记录
         loss_record_npy = np.load(self.args.Loss_Record_Path, allow_pickle=True)
-
+        #读取贡献值
+        contr_record_npy= np.load(self.args.Con_Record_Path, allow_pickle=True)
+        #读取sub_omega
+        sub_omage_npy = np.load(self.args.Omega_Record_Path, allow_pickle=True)
+    
         # 获取模型预测 tuple 后需要改
         pred = self.model(torch.from_numpy(x_test).float().to(self.device))[0].detach().cpu().numpy()
     
@@ -569,21 +604,19 @@ s
 
         elif x_test.shape[-1] == 2: #[5000,2]
             # analyzer
-            analyzer = Analyzer4scale(model=self.model,d=2,scale_coeffs=self.args.Scale_Coeff)
+           
             fig, axes,cb_list = self.plot.plot_2d(nrow=4,ncol=3,
                                         loss_record=loss_record_npy,
-                                        analyzer=analyzer,
-                                        pred=pred,
+                                        contr_record=contr_record_npy,
+                                        omega_record=sub_omage_npy,
                                         epoch=epoch,
                                         avg_test_loss=avg_test_loss,
-                                        contribution_record=self.args.Con_record,
                                         solver=self.solver,
                                         model=self.model,
-                                        contribution_record_path=self.args.Con_Record_Path,
-                                        omega_value_path=self.args.Omega_Record_Path,
-                                        omega=kwargs["sub_omega"])
-
-        
+                                        record_interve =self.args.record_interve,
+                                        )
+            
+                    
         # 保存整个图表
         fig.savefig('{}/combined_loss_{}.png'.format(self.args.Save_Path, epoch),
                     bbox_inches='tight', format='png')
@@ -595,8 +628,11 @@ s
         axes[1].clear()
         axes[2].clear()
         axes[3].clear()
-        axes[7].cla()
-        axes[8].cla()
+        
+        axes[4].clear()
+        axes[5].clear()
+
+  
 
     def _CheckPoint(self,**kwargs):
             epoch=kwargs["epoch"]
@@ -694,7 +730,7 @@ s
         print("train_bc_penalty:{}".format(self.args.penalty_boun))
 
                     
-        for epoch in range(self.epoch):
+        for epoch in range(self.args.epoch):
             
             self.solver.data.train_x,_,_=self.solver.data.train_next_batch()
             self.solver.data.train_x_all=self.solver.data.train_points()
@@ -702,9 +738,9 @@ s
 
             # deepxde重新生成边界条件点-every epoch
             all_data= self.solver.data.train_x_all #pde+bc data
-    
+
             bc_data= self.solver.data.train_x_bc #bc data
-            
+   
             # 将 bc_data 转换为一组元组以进行比较
             bc_set = set(map(tuple, bc_data))
 
@@ -754,24 +790,24 @@ s
                 
             if self.args.MOE:
                 
-                self._update_loss_record(epoch, train_loss=train_loss,type="deepxde",
+                self._update_loss_record(epoch, train_loss=train_loss,
                                             pde_loss=pde_loss.item(),
                                             bc_loss=bc_loss.item(),
                                             data_loss=data_loss.item(),
                                             test_loss=test_loss.item(),
                                             test_data=torch_test,
-                                            sub_omega=self.model.sub_omegas.detach().cpu().numpy(),
+                                        
                                             moe_loss=moe_loss.item(),
                                             p_gates = p_gates.cpu().detach().numpy(),
                                             b_gates = b_gates.cpu().detach().numpy())
             else:
-                self._update_loss_record(epoch, train_loss=train_loss,type="deepxde",
+                self._update_loss_record(epoch, train_loss=train_loss,
                                             pde_loss=pde_loss.item(),
                                             bc_loss=bc_loss.item(),
                                             data_loss=data_loss.item(),
                                             test_loss=test_loss.item(), 
                                             test_data=torch_test,
-                                            sub_omega=self.model.sub_omegas.detach().cpu().numpy(),
+                                          
                                             moe_loss= torch.tensor(0),
                                             p_gates = torch.tensor(0),
                                             b_gates = torch.tensor(0))
@@ -780,13 +816,18 @@ s
                 
                 
     def Do_Expr(self):
-
-        if self.args.PDE == "self_PDE":
+        
+        print("self.args.Task",self.args.Task)
+        if self.args.Task == "selfpde":
+            print("this is the selfpde task")
             self.Train_PDE()
-        elif self.args.PDE == "deepxde":
+        elif self.args.Task == "deepxde":
+            print("this is the deepxde task")
             self.Train_XDE()
-        else:#fitting
+        elif self.args.Task == "fitting":#fitting
+            print("this is the fitting task")
             self.Train()
+
         print("we have done the expr")
 
 if __name__=="__main__":

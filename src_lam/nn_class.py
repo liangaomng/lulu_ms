@@ -13,8 +13,9 @@ class Single_MLP(nn.Module):
                  use_residual:list,
                  **kwargs):
         super(Single_MLP, self).__init__()
+
         self.layers = nn.ModuleList()
-        self.use_residual = use_residual[0]
+        self.use_residual = use_residual
         layer_depth = len(layer_set)-1
         layer_width=layer_set[1]
         assert len(kwargs["activation_set"])==layer_depth -1 #激活比linear 少一个
@@ -106,7 +107,7 @@ class Multi_scale2(nn.Module):
         self.scale_number=len(scale_number)
         
         if "Siren" in act_set: #siren
-            print(act_set)
+            
         
             one_layer = Siren( in_features=layer_set[0],
                                out_features=layer_set[-1],
@@ -119,8 +120,7 @@ class Multi_scale2(nn.Module):
         else:
             act_list= self._Return_act_list(act_set) #4个激活函数,module list,每个有3个激活函数
             kernel_method=self._Return_init_list(ini_set)#4个初始化方法，每个1个初始化方法
-            
-            print("scale_learn",scale_learn)
+
 
             one_layer = Single_MLP(     input_size=layer_set[0],
                                         layer_set=layer_set,
@@ -153,11 +153,7 @@ class Multi_scale2(nn.Module):
 
         out= torch.sum(outputs, dim=2)
         
-        #多尺度无moe_loss =0,gates =0
-        moe_loss = 0
-        gates = 0
-        
-        return out,moe_loss,gates
+        return out
 
 
     def _Return_act_list(self,activation_set):

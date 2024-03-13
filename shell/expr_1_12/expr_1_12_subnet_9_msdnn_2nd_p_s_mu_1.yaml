@@ -19,7 +19,7 @@ SET:
   Sub_number: 9
   Test_points: 6400
   lr: 0.001
-  mu: 15
+  mu: 1
   shape: square
   Task: deepxde #deepxde
   Note: This is to test mscalednn in contribution of each scale

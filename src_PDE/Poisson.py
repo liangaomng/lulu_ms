@@ -16,7 +16,6 @@ import torch
 class  PDE_base():
     def __init__(self):
         pass
-         
     
     def Get_Data(self):
         pass
@@ -125,15 +124,16 @@ class PDE_PossionData(PDE_base):
         #targets=se
         # lf.torch_u(x=inputs[:,0],t=inputs[:,1])  # 创建一个与u形状相同且元素为1的张量(,1)
         inputs=data
+
         outputs=net(data) # 计算网络输出
          # 检查输出结果
         if isinstance(outputs, tuple):
             #moe 有3个输出
             output, moe_loss, gates = outputs
-
+           
         else:
             # 如果输出不是元组，假设它是单一输出
-            
+         
             num_outputs = 1
             output=outputs
             moe_loss=0
@@ -162,7 +162,7 @@ class PDE_PossionData(PDE_base):
             gates=0
         
         # 计算 MSE 损失
-        targets=self.torch_u(x=data[:,0:1],y=data[:,1:2])+ moe_loss  # 创建一个与u形状相同且元素为1的张量(,1)
+        targets=self.torch_u(x=data[:,0:1],y=data[:,1:2]) + moe_loss  # 创建一个与u形状相同且元素为1的张量(,1)
         
 
         data_loss = self.data_mse(u,targets)
@@ -225,15 +225,22 @@ class PDE_PossionData(PDE_base):
         elif self.shape == "Circle":
             # 定义圆形洞的中心和半径
             hole_center = [0, 0]  
-            hole_radius = 0.5  # 圆形洞的半径
+            hole_radius = 1 # 圆形洞的半径
 
             # 使用Circle类创建圆形洞
             circle_hole = dde.geometry.geometry_2d.Disk(hole_center, hole_radius)
             self.geom = circle_hole
+        elif self.shape =="Triangle":
+            # 定义三角形的三个顶点
+
+            # 使用Polygon类创建三角形形状
+            triangle = dde.geometry.geometry_2d.Triangle([-1, -1], [1, -1], [0, 1])
+            self.geom = triangle
         
         domain_numbers=kwagrs.get("domain_numbers",6400)
         boundary_numbers=kwagrs.get("boundary_numbers",2000)
         test_numbers=kwagrs.get("test_numbers",6400)
+
         
         
         bc = dde.icbc.DirichletBC(self.geom, lambda x: 0, self.boundary)
@@ -281,16 +288,16 @@ class PDE_PossionData(PDE_base):
 
         u=self.gen_exact_solution(x,y)
 
-        sc=ax.scatter(x,y, c=u,cmap="bwr",s=1)
+        sc=ax.scatter(x,y, c=u,cmap="bwr",s=2)
 
-        ax.set_xlabel("x")
+        ax.set_xlabel("x",fontsize=12)
         
-        ax.set_ylabel("y")
+        ax.set_ylabel("y",fontsize=12)
            
         # 色条
         cb=plt.colorbar(sc, ax=ax)
 
-        ax.set_title(title)
+        ax.set_title(title,fontsize=14)
         return u,cb
     def plot_pred(self,ax=None,model=None,
                     title="Pred u(x,y)",
@@ -301,21 +308,24 @@ class PDE_PossionData(PDE_base):
         y = data[:, 1]
         
         data=torch.from_numpy(data).float().to(self.device)
-
+    
         # 获取 usol 值
         if self.device =="cuda":
-             usol_net = model(data)[0].cpu().detach().numpy()
-            
+               
+            usol_net=model(data).cpu().detach().numpy()
+          
         else:
-            usol_net = model(data)[0].cpu().detach().numpy()
+            usol_net = model(data).cpu().detach().numpy()
+        
 
         # 绘制热力图
-        sc=ax.scatter(x,y, c=usol_net, cmap="bwr",s=1)
+        print(usol_net.shape)
+        sc=ax.scatter(x,y, c=usol_net, cmap="bwr",s=2)
         cb= plt.colorbar(sc, ax=ax)
 
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        ax.set_title(title)
+        ax.set_xlabel("x",fontsize=12)
+        ax.set_ylabel("y",fontsize=12)
+        ax.set_title(title,fontsize=14)
         return usol_net,cb
 
     def train(self,net=None):
@@ -333,7 +343,8 @@ def u_point(x, y, mu=15):
 
 
 if __name__ == "__main__":
-    po=PDE_PossionData()
+    po = PDE_PossionData()
+
     
     # Generate 1024 points in 2D space
     points = np.random.rand(10240, 2) # This will create points with coordinates between 0 and 1

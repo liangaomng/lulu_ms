@@ -1,20 +1,23 @@
-#data:24/1/26
+#data:24/3/13
 # conda init bash
 # conda activate base
 #data:24/1/26
 # conda init bash
 # conda activate base
 declare -a Task
-yaml=shell/expr_1_11/expr_1_11_subnet_9_msdnn_2nd_p_s_mu_15.yaml
 #0 is pde task
 #1 is exprs folder 
 Task[0]=Poisson
 full_path=$0
-# 使用basename获取不包括路径的文件名
+expr_folder=shell/expr_1_12_p_p_mu_7_sub_9/MOE/
+
+export DDE_BACKEND=pytorch
+
+yaml_name=$(basename "$full_path" .sh)
 
 script_name=$(basename "$full_path" .sh)
+yaml_path=${expr_folder}${script_name}.yaml
 echo "The name of this script is: $script_name"
 
-#根据这个 来写入到不同的文件夹script_name
-#possion
-python Expr1_P.py --config_yaml $yaml --save_folder $script_name
+# #possion
+python Expr1_P.py --config_yaml $yaml_path --save_folder $script_name

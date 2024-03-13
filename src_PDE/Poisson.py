@@ -230,7 +230,7 @@ class PDE_PossionData(PDE_base):
             # 使用Circle类创建圆形洞
             circle_hole = dde.geometry.geometry_2d.Disk(hole_center, hole_radius)
             self.geom = circle_hole
-        elif self.shape =="Triangle":
+        elif self.shape =="triangle":
             # 定义三角形的三个顶点
 
             # 使用Polygon类创建三角形形状
@@ -301,21 +301,30 @@ class PDE_PossionData(PDE_base):
         return u,cb
     def plot_pred(self,ax=None,model=None,
                     title="Pred u(x,y)",
-                    cmap="bwr",data=None):
+                    cmap="bwr",data=None,**kwargs):
         # Number of points in each dimension:
         # 提取 x 和 t
         x = data[:, 0]
         y = data[:, 1]
+
+        MOE =kwargs["MOE"]
         
         data=torch.from_numpy(data).float().to(self.device)
     
         # 获取 usol 值
         if self.device =="cuda":
-               
-            usol_net=model(data).cpu().detach().numpy()
+
+            if MOE == False:
+                usol_net=model(data).cpu().detach().numpy()
+            else: #moe     需要第一个
+                usol_net=model(data)[0].cpu().detach().numpy()
+    
           
         else:
-            usol_net = model(data).cpu().detach().numpy()
+            if MOE == False:
+                usol_net=model(data).cpu().detach().numpy()
+            else: #moe     需要第一个
+                usol_net=model(data)[0].cpu().detach().numpy()
         
 
         # 绘制热力图

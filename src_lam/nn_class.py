@@ -190,18 +190,8 @@ class MoE_Multi_Scale(nn.Module):
         num_experts = self.scale_number
         #k专家
         k= kwargs["sparse_experts"]
+        print("sparse_k",k)
 
-        #稀疏网络
-        #experts_num = kwargs["experts"]
-    
-        one_layer = Siren( in_features=layer_set[0],
-                            out_features=layer_set[-1],
-                            hidden_features=layer_set[1],
-                            hidden_layers=len(layer_set)-1,
-                            outermost_linear=True
-                            )
-        self.Multi_scale=self._clones(one_layer,sub_layer_number) #复制4个网络
-            
         act_list= self._Return_act_list(act_set) #4个激活函数,module list,每个有3个激活函数
         kernel_method=self._Return_init_list(ini_set)#4个初始化方法，每个1个初始化方法
         

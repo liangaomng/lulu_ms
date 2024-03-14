@@ -225,6 +225,8 @@ class Plot_Adaptive:
                 for col in range(num_columns):
                     ax.axvline(x=col, color='k', linestyle='--', linewidth=1)
                 cb4 = plt.colorbar(im, ax=self.axes[13], label='Prob compare with experts')
+                # 设置横坐标刻度的字体大小
+   
                  
 
             if i ==14:
@@ -235,6 +237,7 @@ class Plot_Adaptive:
                 for col in range(num_columns):
                     ax.axvline(x=col, color='k', linestyle='--', linewidth=1)
                 cb5 = plt.colorbar(im, ax=ax, label='Prob compare with experts')
+            
 
             if i == 15:
             
@@ -248,6 +251,7 @@ class Plot_Adaptive:
                         ax.scatter(x=j, y=y, color=color,s=100,alpha=0.8)
                 ax.plot(range(len(y_values)), y_values, '--', color='k')
                 cb6=plt.colorbar(scalar_map, ax=ax, label='Load in test')
+
 
         return self.fig, self.axes,[cb1,cb2,cb3,cb4,cb5,cb6]
         
@@ -436,7 +440,7 @@ class Plot_Adaptive:
                 ax.set_xlabel('Epoch', fontsize=16)
                 ax.set_ylabel('Loss', fontsize=16)
                 ax.get_xaxis().get_major_formatter().set_useOffset(False)
-                ax.tick_params(labelsize=13, width=2, colors='black')
+       
                 ax.set_title("Loss_Epoch{}".format(epoch))
             if i == 4:  # 保存
                 # 归一化contri值 因为【epoch,9】，对每一个epoch做归一化 对每一行
@@ -451,12 +455,12 @@ class Plot_Adaptive:
                 contri_normalized = (contri_value[:,1:] - min_values) / range_values
 
              
-                cb4 = ax.matshow(contri_normalized,cmap='bwr', aspect='auto', vmin=0, vmax=0.3)
+                cb4 = ax.matshow(contri_normalized.T,cmap='bwr', aspect='auto', vmin=0, vmax=0.3)
 
                 # 设置轴标签和标题
-                if epoch ==0:
-                    cb_handel = plt.colorbar(cb4, ax=ax, label='Norm contri Value')
-                    cb_handel.set_label('Norm contri Value', size=18)  # Correct way to set the label
+            
+                cb_handel = plt.colorbar(cb4, ax=ax, label='Norm contri Value')
+                cb_handel.set_label('Norm contri Value', size=18)  # Correct way to set the label
 
                 #rows = contri_normalized.shape[0] #epochs
                 # for i in range(rows):
@@ -465,9 +469,11 @@ class Plot_Adaptive:
                 #     rect = plt.Rectangle(( min_index-0.5,i-0.5), 1, 1, edgecolor='k', facecolor='none',linestyle='--', linewidth=2)
                 #     ax.add_patch(rect)
                 record_inter =kwagrs['record_interve']
-                ax.set_ylabel(f'Epoch x{record_inter}',fontsize=15)
-                ax.set_xlabel('Subnets',fontsize=15)
+                ax.set_xlabel(f'Epoch x{record_inter}',fontsize=15)
+                ax.set_ylabel('Subnets',fontsize=15)
                 ax.set_title('Normalized contri Values per Epoch for Mscale',fontsize=18)
+                ax.tick_params(axis='x', labelsize=14)
+                ax.tick_params(axis='y', labelsize=14)
 
                
             if i ==5: #开始画omega 演化
@@ -477,12 +483,13 @@ class Plot_Adaptive:
                 # 设置轴标签和标题
     
                 # 添加颜色条
-                if epoch ==0:
-                    cb5_handle = plt.colorbar(cb5, ax=ax)
-                    cb5_handle.set_label('Omega Value', size=18)
+                
+                cb5_handle = plt.colorbar(cb5, ax=ax)
+                cb5_handle.set_label('Omega Value', size=18)
                 ax.set_ylabel(f'Epoch x{record_inter}',fontsize=15)
                 ax.set_xlabel('Subnets omegas',fontsize=14)
                 ax.set_title('Omegas of Mscale',fontsize=18)
+  
                
 
     

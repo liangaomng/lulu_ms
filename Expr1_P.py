@@ -36,7 +36,8 @@ if __name__=="__main__":
     expr = Expr_Agent(
         solver = solver,
         config = config,
-        save_folder = args.save_folder
+        save_folder = args.save_folder,
+        yaml_path = args.config_yaml
     )
 
     expr.Do_Expr()

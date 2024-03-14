@@ -9,7 +9,9 @@ declare -a Task
 #1 is exprs folder 
 Task[0]=Poisson
 full_path=$0
-expr_folder=shell/expr_1_11_p_s_mu_1_sub_9/
+shape="p"
+mu="1"
+expr_folder="shell/expr_1_11_p_${shape}_mu_${mu}_sub_9/MOE/"
 
 export DDE_BACKEND=pytorch
 

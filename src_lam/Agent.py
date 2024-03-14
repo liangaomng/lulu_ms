@@ -149,8 +149,9 @@ s
 
         config = kwargs["config"]
         folder_name = kwargs["save_folder"]
+        yaml_path=kwargs["yaml_path"]
 
-        self.args = self._read_arg(config,folder_name)
+        self.args = self._read_arg(config,folder_name,yaml_path = yaml_path)
 
 
 
@@ -217,6 +218,8 @@ s
         args.Learn_scale = config["SET"][0]['Learn_scale']
         args.PDE_py = config["SET"][0]['PDE_Solver']
         args.Agent_py = config["SET"][0]['Src_agent']
+        args.yaml_file = kwargs["yaml_path"]
+
         args.MOE = config["SET"][0]["MOE"]
         args.Task = config["SET"][0]["Task"]
 
@@ -457,11 +460,8 @@ s
 
                 if not os.path.isfile(self.args.Con_Record_Path):
 
-                    # Define a path for the .npz file.
-                    npz_file_path = 'gates_data.npz'
-
                     # Save both arrays into a single npz file.
-                    np.savez(npz_file_path, p_gates=p_gates, b_gates=b_gates)
+                    np.save(self.args.Con_Record_Path, record)
 
 
                 else:
@@ -689,6 +689,8 @@ s
                                                                p_gates= p_gates,
                                                                b_gates= b_gates
                                                                )
+        plt.rcParams['xtick.labelsize'] = 14
+        plt.rcParams['ytick.labelsize'] = 14
 
          
           
@@ -789,12 +791,14 @@ s
     def Train_XDE(self):
 
         #Copy the sover and agent to save
-        des_file=self.args.Save_Path
-        soure_file_solver=self.args.PDE_py
-        soure_file_agent=self.args.Agent_py
+        des_file = self.args.Save_Path
+        soure_file_solver = self.args.PDE_py
+        soure_file_agent = self.args.Agent_py
+        source_file_yaml = self.args.yaml_file
         copy(soure_file_solver,des_file)
         copy(soure_file_agent,des_file)
-        print("save solevr and agent")
+        copy(source_file_yaml,des_file)
+        print("save solevr, agent and yaml")
 
 
         self.model = self.model.to(self.device)

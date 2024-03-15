@@ -78,7 +78,6 @@ class PDE_PossionData(PDE_base):
         #data:[batch,2]
         # 确保 data 的相关列设置了 requires_grad=True  对于data：第0维度是x，t是1维度
 
-
         outputs = net(pde_data)  # 计算网络输出
         
         # 检查输出结果
@@ -87,6 +86,7 @@ class PDE_PossionData(PDE_base):
             u, moe_loss, gates = outputs
 
         else:
+
             # 如果输出不是元组，假设它是单一输出
             num_outputs = 1
             u=outputs

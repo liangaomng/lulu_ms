@@ -53,8 +53,12 @@ class Plot_Adaptive:
             # 第三行的两个子图，平均分配列跨度
             mid_point = ncol // 2 if ncol % 2 == 0 else ncol // 2 + 1
             ax1 = self.fig.add_subplot(gs[2:4, :mid_point])  # 第一个子图占据左半边
-            ax2 = self.fig.add_subplot(gs[2:4, mid_point:])  # 第二个子图占据右半边
-            self.axes.extend([ax1, ax2])
+            self.axes.append(ax1)
+        ax2 = self.fig.add_subplot(gs[2, mid_point:])  # 第二个子图占据右半边
+        self.axes.append(ax2)
+        ax3 = self.fig.add_subplot(gs[3, mid_point:])  # 第二个子图占据右半边
+        self.axes.append(ax3)
+
 
 
     def _create_subplot_moe_grid2(self,nrow,ncol):
@@ -112,7 +116,7 @@ class Plot_Adaptive:
         for i, ax in enumerate(self.axes):
             
             if i == 2:
-                epoch = kwagrs["epoch"]
+                epoch = kwagrs["epoch"]# 每隔记录10个增长1个
 
                 # 在第一个子图上绘制真实值的散点图
 
@@ -340,7 +344,7 @@ class Plot_Adaptive:
         return self.fig,self.axes
     def plot_2d(self, nrow, ncol, **kwagrs):
         # 绘制一些示例数据
-        c_map = ["Green", "Blue", "Purple"]
+        c_map = ["Green", "Purple"]
         # 从kwagrs中获取参数
       
         #画图计算的solver
@@ -476,20 +480,57 @@ class Plot_Adaptive:
                 ax.tick_params(axis='y', labelsize=14)
 
                
-            if i ==5: #开始画omega 演化
-
-                # 第一列是epoch
-                cb5 = ax.matshow(omega_value[:,1:],cmap='rainbow', aspect='auto', vmin=0, vmax=np.max(omega_value[:,1:]))
-                # 设置轴标签和标题
-    
-                # 添加颜色条
+            if i ==5: #画1个bar图,有两个颜色
+                #开始的epoch
+                contri_epoch0=contri_normalized[0,:]
+                print("contri_normalized at epoch 0",contri_epoch0.shape) #(1,9)
+                epoch_omega = omega_value[-1, 1:]    
+                vmin = np.log(epoch_omega.min()) +0.1 # 使用较大底数的对数
+                vmax = np.log(epoch_omega.max())
+                omega_norm = Normalize(vmin=vmin, vmax=vmax)
                 
-                cb5_handle = plt.colorbar(cb5, ax=ax)
-                cb5_handle.set_label('Omega Value', size=18)
-                ax.set_ylabel(f'Epoch x{record_inter}',fontsize=15)
-                ax.set_xlabel('Subnets omegas',fontsize=14)
-                ax.set_title('Omegas of Mscale',fontsize=18)
+                c_map = cm.Greens  # Using a built-in green colormap
+                for j, (contrib, coeff) in enumerate(zip(contri_epoch0.flatten(), epoch_omega)):
+                    coeff_norm = omega_norm(coeff) # 应用对数规范化
+                    ax.bar(j, contrib, color=c_map(coeff_norm), label=f'Scale {j}: Coeff {coeff:.1f}')
+                    ax.text(j, contrib, f'{coeff:.1f}', ha='center', va='bottom', fontsize=10)
+
+
+                #设置图表标题和轴标签
+                ax.set_title(f'Contribution per Scale at epoch={0}')
+                ax.set_xlabel('Scale net')
+                ax.set_ylabel('Contribution',fontsize=10)
+                ax.legend(loc='best',fontsize=8)
+            
+            if i ==6: #画min dataloss 的epoch
+                # 归一化contri值 因为【epoch,9】，对每一个epoch做归一化 对每一行
+                if epoch>=1:
+                    min__data_epoch = np.argmin(loss_record_df[:, 5])
+                    epoch_omega = omega_value[min__data_epoch, 1:]  #第一列是epoch
+                    print("min__data_epoch",min__data_epoch)
+    
+                    vmin = np.log(epoch_omega.min()) + 0.1 # 使用较大底数的对数
+                    vmax = np.log(epoch_omega.max())
+                    omega_norm = Normalize(vmin=vmin, vmax=vmax)
+                    
+                    c_map = cm.Blues  # Using a built-in Blues colormap
+                    contri_min_data = contri_normalized[min__data_epoch,:]
+
+                    for k, (contrib, coeff) in enumerate(zip(contri_min_data.flatten(), epoch_omega)):
+                        coeff_norm = omega_norm(coeff) # 应用对数规范化
   
+                        ax.bar(k, contrib, color=c_map(coeff_norm), label=f'Scale {k}: Coeff {coeff:.1f}')
+                        ax.text(k, contrib, f'{coeff:.1f}', ha='center', va='bottom', fontsize=10)
+
+
+                    #设置图表标题和轴标签
+                    ax.set_title(f'Contribution per Scale at min data_loss epoch={min__data_epoch * record_inter}')
+                    ax.set_xlabel('Scale net')
+                    ax.set_ylabel('Contribution',fontsize=10)
+                    ax.legend(loc='best',fontsize=8)
+                else:
+                    pass
+    
                
 
     
@@ -498,7 +539,7 @@ class Plot_Adaptive:
                
                 
 
-        return self.fig, self.axes,[cb1,cb2,cb3,cb4,cb5]
+        return self.fig, self.axes,[cb1,cb2,cb3,cb4]
 
     # 使用示例
 if __name__ == '__main__':

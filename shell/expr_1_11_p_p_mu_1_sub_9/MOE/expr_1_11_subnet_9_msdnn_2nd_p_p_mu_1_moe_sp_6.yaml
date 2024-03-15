@@ -13,7 +13,7 @@ SET:
   Penalty_data: 0
   Penalty_pde: 1
   Seed: 42
-  Save_Path: Result/Poisson/expr_1_11_p_p_mu_1_sub_9/MOE/sp_6/
+  Save_Path: Result/Poisson/expr_1_11_p_p_mu_1_sub_9_MOE/sp_6/
   Scale_Coeff: 1,2,4,8,16,32,64,128,256
   Src_agent: src_lam/Agent.py
   Sub_number: 9

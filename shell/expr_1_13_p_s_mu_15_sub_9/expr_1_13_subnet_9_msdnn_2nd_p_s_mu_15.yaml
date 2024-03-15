@@ -1,0 +1,32 @@
+SET:
+- Batch_size: 1
+  Boundary_points: 2500
+  Section: 0,1000,4500
+  Domain_points: 6400
+  Epoch: 10000
+  Fig_Record_Interve: 100
+  Record_Interve: 10
+  Learn_scale: false
+  Model: mscalenn2
+  PDE_Solver: src_PDE/Poisson.py
+  Penalty_boundary: 1000
+  Penalty_data: 0
+  Penalty_pde: 1
+  Seed: 42
+  Save_Path: Result/Poisson/expr_1_13_p_s_mu_15_sub_9_msdnn/
+  Scale_Coeff: 1,2,4,8,16,32,64,128,256
+  Src_agent: src_lam/Agent.py
+  Sub_number: 9
+  Test_points: 6400
+  lr: 0.001
+  mu: 15
+  shape: square
+  Task: deepxde #deepxde
+  Note: This is to test mscalednn in contribution of each scale
+  MOE: false
+  sp_k: 9
+Subnet:
+- Act_Set: phi,phi,phi
+  Ini_Set: xavier_uniform
+  Layer_Set: 2,100,100,100,1
+  Residual: false

@@ -1,0 +1,5 @@
+
+bash shell/expr_1_12_p_t_mu_7_sub_9/expr_1_12_subnet_9_msdnn_2nd_p_t_mu_7.sh 
+bash shell/expr_1_12_p_t_mu_7_sub_9/MOE/expr_1_12_subnet_9_msdnn_2nd_p_t_mu_7_moe_sp_3.sh
+bash shell/expr_1_12_p_t_mu_7_sub_9/MOE/expr_1_12_subnet_9_msdnn_2nd_p_t_mu_7_moe_sp_6.sh 
+bash shell/expr_1_12_p_t_mu_7_sub_9/MOE/expr_1_12_subnet_9_msdnn_2nd_p_t_mu_7_moe_sp_9.sh

@@ -635,12 +635,13 @@ s
             # 假设data是一个字典，提取p_gates和bc_gates
             p_gates = gates_npz['p_gates']# 使用 .item() 将numpy对象转换为字典，如果它是字典的话
             b_gates = gates_npz['b_gates']
-            if epoch >0:
-                p_gates=p_gates[-1,:,:].reshape(-1,self.args.sp_experts)
-                b_gates=b_gates[-1,:,:].reshape(-1,self.args.sp_experts)
-            if epoch ==0:
-                p_gates=p_gates.reshape(-1,self.args.sp_experts)
-                b_gates=b_gates[:,:].reshape(-1,self.args.sp_experts)
+            if epoch > 0:
+                p_gates=p_gates[-1,:,:].reshape(-1,len(self.args.Scale_Coeff))
+                b_gates=b_gates[-1,:,:].reshape(-1,len(self.args.Scale_Coeff))
+            if epoch == 0:
+                
+                p_gates=p_gates.reshape(-1,len(self.args.Scale_Coeff)) #(6400,0)
+                b_gates=b_gates[:,:].reshape(-1,len(self.args.Scale_Coeff))
 
        
     
@@ -853,6 +854,7 @@ s
             optimizer.step()
 
 
+
             #plot
                 
             if epoch % 1== 0:
@@ -869,6 +871,7 @@ s
                 
         
             if self.args.MOE:
+
                 
                 self._update_loss_record(   epoch, train_loss=train_loss,
                                             pde_loss=pde_loss.item(),

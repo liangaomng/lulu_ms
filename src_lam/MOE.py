@@ -146,6 +146,7 @@ class MoE(nn.Module):
         self.w_gate = nn.Parameter(torch.zeros(self.input_size, self.num_experts), requires_grad=True)
         self.w_noise = nn.Parameter(torch.zeros(self.input_size, self.num_experts), requires_grad=True)
 
+
         self.softplus = nn.Softplus()
         self.softmax = nn.Softmax(1)
         
@@ -288,9 +289,10 @@ class MoE(nn.Module):
         dispatcher = SparseDispatcher(self.num_experts, gates)
         expert_inputs = dispatcher.dispatch(x)
         
-        self.load=expert_inputs
+        self.load = expert_inputs
 
         gates_return = gates
+
 
         # 应用尺度系数到每个专家的输入
         expert_outputs = []
@@ -309,12 +311,13 @@ class MoE(nn.Module):
         # 组合来自不同专家的输出，
         y = dispatcher.combine(expert_outputs)
         #return y,loss,gates:[6400,9]
-
         return y, loss , gates
     
                   
     
     def _record_load(self):
+
         return self.load
+    
 if __name__=="__main__":
     pass

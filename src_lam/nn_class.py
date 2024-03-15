@@ -220,6 +220,7 @@ class MoE_Multi_Scale(nn.Module):
 
 
     def forward(self, x):
+
         """定义前向传播。"""
         out,loss,gates = self.Moe_scale(x)
         
@@ -245,7 +246,7 @@ class MoE_Multi_Scale(nn.Module):
 
 
 if __name__=="__main__":
-    print("hi")
+    print("hi1")
 
     
 

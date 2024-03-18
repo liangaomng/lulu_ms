@@ -256,7 +256,7 @@ s
             args.penalty_boun = config["SET"][0]['Penalty_boundary']
             args.penalty_pde = config["SET"][0]['Penalty_pde']
             args.penalty_data = config["SET"][0]['Penalty_data'] #0
-            assert args.penalty_data== 0,"In pde task, the data loss is 0"
+           
             args.Boundary_points = config["SET"][0]['Boundary_points']
             args.Domain_points = config["SET"][0]['Domain_points']
             args.Test_points = config["SET"][0]['Test_points']
@@ -678,18 +678,24 @@ s
                                             record_interve =self.args.record_interve,
                                             )
             if self.args.MOE == True:
-
+                
                 fig,axes,cb_list = self.plot.plot_moe__load_2d(nrow=6,ncol=3,
-                                                               loss_record = loss_record_npy,
-                                                               omega_record=sub_omage_npy,
-                                                               epoch=epoch,
-                                                               model=self.model,
-                                                               solver=self.solver,
-                                                               load = self.model.Moe_scale._record_load(),
-                                                               record_interve = self.args.record_interve,
-                                                               p_gates= p_gates,
-                                                               b_gates= b_gates
-                                                               )
+                                                            loss_record = loss_record_npy,
+                                                            omega_record=sub_omage_npy,
+                                                            epoch=epoch,
+                                                            model=self.model,
+                                                            solver=self.solver,
+                                                            load = self.model.Moe_scale._record_load(),
+                                                            record_interve = self.args.record_interve,
+                                                            p_gates= p_gates,
+                                                            b_gates= b_gates
+                                                            )
+                    
+    
+                    
+                
+                
+                
         plt.rcParams['xtick.labelsize'] = 14
         plt.rcParams['ytick.labelsize'] = 14
 
@@ -837,13 +843,18 @@ s
             bc_data = torch.from_numpy(bc_data).float().to(self.device)
             bc_data.requires_grad=True
             #pde loss
-            train_pde_loss,_,_ = self.solver.pde_loss(net=self.model,pde_data=pde_data)
-            #bc loss
-            train_bc_loss,_,_= self.solver.bc_loss(net=self.model,data=bc_data)
+            if self.args.penalty_pde != 0:
+                train_pde_loss,_,_ = self.solver.pde_loss(net=self.model,pde_data=pde_data)
+                #bc loss
+                train_bc_loss,_,_= self.solver.bc_loss(net=self.model,data=bc_data)
+                train_loss =  self.args.penalty_pde*train_pde_loss
+                train_loss += self.args.penalty_boun*train_bc_loss
             #data loss
-            train_data_loss=self.solver.data_loss(net=self.model,data=train_data)
-            train_loss =  self.args.penalty_pde*train_pde_loss
-            train_loss += self.args.penalty_boun*train_bc_loss
+            elif self.args.penalty_pde == 0: #pure data_driven
+                train_data_loss,_,_=self.solver.data_loss(net=self.model,data=train_data)
+
+                print("train_data_loss:{}".format(train_data_loss)) 
+                train_loss = train_data_loss *self.args.penalty_data
             
             #train
             optimizer.zero_grad()

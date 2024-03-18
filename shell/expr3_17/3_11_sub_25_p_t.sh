@@ -1,0 +1,3 @@
+bash shell/expr_3_11_p_t_mu_1_sub_25/expr_3_11_subnet_25_msdnn_2nd_p_t_mu_1.sh &&
+bash shell/expr_3_11_p_t_mu_7_sub_25/expr_3_11_subnet_25_msdnn_2nd_p_t_mu_7.sh &&
+bash shell/expr_3_11_p_t_mu_15_sub_25/expr_3_11_subnet_25_msdnn_2nd_p_t_mu_15.sh

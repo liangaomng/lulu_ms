@@ -30,10 +30,8 @@ class Plot_Adaptive:
             ax2 = fig.add_subplot(gs[-1, ncol//2:])  # 假设第二个子图占据右半边
             axes.extend([ax1, ax2])
                 
-         
             self.axes.append(ax)
           
-
     def _create_subplot_grid2(self,nrow, ncol):
         self.fig = plt.figure(figsize=(2.2 * ncol * 3, 1.8 * nrow * 3))
         gs = GridSpec(nrow, ncol, figure=self.fig, hspace=0.4, wspace=0.3)
@@ -105,7 +103,7 @@ class Plot_Adaptive:
         solver=kwagrs["solver"]
         model=kwagrs["model"]
         omega_value= kwagrs["omega_record"]
-                #负载
+        #负载
         cmap = plt.cm.rainbow
         norm = plt.Normalize(min(y_values), max(y_values))
         scalar_map = cm.ScalarMappable(norm=norm, cmap=cmap)
@@ -260,7 +258,11 @@ class Plot_Adaptive:
         return self.fig, self.axes,[cb1,cb2,cb3,cb4,cb5,cb6]
         
 
+        
+        
+        
 
+        
 
             
     def plot_1d(self,nrow,ncol,**kwagrs):
@@ -473,11 +475,11 @@ class Plot_Adaptive:
                 #     rect = plt.Rectangle(( min_index-0.5,i-0.5), 1, 1, edgecolor='k', facecolor='none',linestyle='--', linewidth=2)
                 #     ax.add_patch(rect)
                 record_inter =kwagrs['record_interve']
-                ax.set_xlabel(f'Epoch x{record_inter}',fontsize=15)
-                ax.set_ylabel('Subnets',fontsize=15)
+                ax.set_xlabel(f'Epoch x{record_inter}',fontsize=20)
+                ax.set_ylabel('Subnets',fontsize=20)
                 ax.set_title('Normalized contri Values per Epoch for Mscale',fontsize=18)
-                ax.tick_params(axis='x', labelsize=14)
-                ax.tick_params(axis='y', labelsize=14)
+                ax.tick_params(axis='x', labelsize=18)
+                ax.tick_params(axis='y', labelsize=18)
 
                
             if i ==5: #画1个bar图,有两个颜色
@@ -490,17 +492,22 @@ class Plot_Adaptive:
                 omega_norm = Normalize(vmin=vmin, vmax=vmax)
                 
                 c_map = cm.Greens  # Using a built-in green colormap
+                # 用于存储散点的x和y值，以便绘制连接线
+                x_vals = []
+                y_vals = []
                 for j, (contrib, coeff) in enumerate(zip(contri_epoch0.flatten(), epoch_omega)):
                     coeff_norm = omega_norm(coeff) # 应用对数规范化
-                    ax.bar(j, contrib, color=c_map(coeff_norm), label=f'Scale {j}: Coeff {coeff:.1f}')
-                    ax.text(j, contrib, f'{coeff:.1f}', ha='center', va='bottom', fontsize=10)
-
-
+                    ax.scatter(j, contrib, color=c_map(coeff_norm), label=f'Scale {j}: Coeff {coeff:.1f}')
+                    x_vals.append(j)
+                    y_vals.append(contrib)
+                    #ax.text(j, contrib, f'{coeff:.1f}', ha='center', va='bottom', fontsize=7)     
                 #设置图表标题和轴标签
+                    # 在所有散点之间绘制连接线
+                ax.plot(x_vals, y_vals, color='k', linestyle='-', linewidth=1)
                 ax.set_title(f'Contribution per Scale at epoch={0}')
                 ax.set_xlabel('Scale net')
                 ax.set_ylabel('Contribution',fontsize=10)
-                ax.legend(loc='best',fontsize=8)
+                ax.legend(loc='upper right', bbox_to_anchor=(1.4, 1.1), fontsize=8)
             
             if i ==6: #画min dataloss 的epoch
                 # 归一化contri值 因为【epoch,9】，对每一个epoch做归一化 对每一行
@@ -512,22 +519,24 @@ class Plot_Adaptive:
                     vmin = np.log(epoch_omega.min()) + 0.1 # 使用较大底数的对数
                     vmax = np.log(epoch_omega.max())
                     omega_norm = Normalize(vmin=vmin, vmax=vmax)
-                    
+                    x_vals_end = []
+                    y_vals_end = []
                     c_map = cm.Blues  # Using a built-in Blues colormap
                     contri_min_data = contri_normalized[min__data_epoch,:]
 
                     for k, (contrib, coeff) in enumerate(zip(contri_min_data.flatten(), epoch_omega)):
                         coeff_norm = omega_norm(coeff) # 应用对数规范化
-  
-                        ax.bar(k, contrib, color=c_map(coeff_norm), label=f'Scale {k}: Coeff {coeff:.1f}')
-                        ax.text(k, contrib, f'{coeff:.1f}', ha='center', va='bottom', fontsize=10)
+                        x_vals_end.append(k)
+                        y_vals_end.append(contrib)
+                        ax.scatter(k, contrib, color=c_map(coeff_norm), label=f'Scale {k}: Coeff {coeff:.1f}')
+                        #ax.text(k, contrib, f'{coeff:.1f}', ha='center', va='bottom', fontsize=10)
 
-
+                    ax.plot(x_vals_end, y_vals_end, color='k', linestyle='-', linewidth=1)
                     #设置图表标题和轴标签
                     ax.set_title(f'Contribution per Scale at min data_loss epoch={min__data_epoch * record_inter}')
                     ax.set_xlabel('Scale net')
                     ax.set_ylabel('Contribution',fontsize=10)
-                    ax.legend(loc='best',fontsize=8)
+                    ax.legend(loc='upper right', bbox_to_anchor=(1.4, 1.1), fontsize=8)
                 else:
                     pass
     

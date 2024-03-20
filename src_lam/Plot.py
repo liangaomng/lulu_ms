@@ -10,6 +10,8 @@ class Plot_Adaptive:
     def __init__(self):
         self.fig = None
         self.axes = None
+        self.fig_load = None
+        self.axes_load = None
     def _create_subplot_grid1(self,nrow, ncol):
         self.fig = plt.figure(figsize=(1.6*ncol * 3, 1.4*nrow * 3))
         gs = GridSpec(nrow, ncol, figure=self.fig,hspace=0.4,wspace=0.3)
@@ -75,24 +77,25 @@ class Plot_Adaptive:
             ax = self.fig.add_subplot(gs[2, c])
             self.axes.append(ax)
                 # 添加第一行的子图，每列一个
-        for c in range(ncol):
-            ax = self.fig.add_subplot(gs[3, c])
-            self.axes.append(ax)
-                # 添加第一行的子图，每列一个
-        for c in range(ncol):
-            ax = self.fig.add_subplot(gs[4, c])
-            self.axes.append(ax)
-        for c in range(ncol):
-            ax = self.fig.add_subplot(gs[5, c])
-            self.axes.append(ax)
+
+    def _create_moe_load_grid2(self,nrow,ncol):
+
+        self.fig_load = plt.figure(figsize=(2.2 * ncol * 3, 1.8 * nrow * 3)) 
+        gs = GridSpec(nrow, ncol, figure=self.fig, hspace=0.4, wspace=0.3)
+        self.axes_load = []
+    # 对于每一行和每一列，添加子图
+        for r in range(nrow):
+            for c in range(ncol):
+                ax =  self.fig_load.add_subplot(gs[r, c])
+                self.axes_load.append(ax)
 
 
 
 
-    def plot_moe__load_2d(self, nrow,ncol,**kwagrs):
+    def plot_moe__loss_gates(self, nrow,ncol,**kwagrs):
         
         if self.fig is None:
-            self._create_subplot_moe_grid2(nrow=6, ncol=3)
+            self._create_subplot_moe_grid2(nrow=3, ncol=3)
 
         load = kwagrs['load']
         # 计算每个点的y值（即每个数组的长度）
@@ -197,26 +200,9 @@ class Plot_Adaptive:
                 ax.get_xaxis().get_major_formatter().set_useOffset(False)
                 ax.tick_params(labelsize=13, width=2, colors='black')
                 ax.set_title("Loss_Epoch{}".format(epoch))
-
-            if i == 12:# 散点
-            #正常画9个子网络的load
-                ax_order=4
-                
-                for j, y in enumerate(y_values):
-
-
-                    coord_x=load[j][:,0].cpu().detach().numpy()
-
-                    coord_y=load[j][:,1].cpu().detach().numpy()
-
-                    self.axes[ax_order].scatter(coord_x,coord_y,alpha=0.8,s=10,label=f"subnet_{j}_load")
-                    self.axes[ax_order].legend(loc="upper left")
-                    self.axes[ax_order].set_title(f"subnet_{j}_load_distribution_{y_values[j]}")
-                    ax_order = ax_order+1
-
                 
 
-            if i ==13:#  pde gates
+            if i ==4:#  pde gates
                 pde_gates = kwagrs["p_gates"]
                 im=ax.imshow(pde_gates, cmap='bwr',aspect="auto",vmin=0,vmax=0.5)
                 ax.set_title("p_gates",fontsize=18 )
@@ -226,12 +212,12 @@ class Plot_Adaptive:
                 num_columns = pde_gates.shape[1]
                 for col in range(num_columns):
                     ax.axvline(x=col, color='k', linestyle='--', linewidth=1)
-                cb4 = plt.colorbar(im, ax=self.axes[13], label='Prob compare with experts')
+                cb4 = plt.colorbar(im, ax=ax, label='Prob compare with experts')
                 # 设置横坐标刻度的字体大小
    
                  
 
-            if i ==14:
+            if i ==5:
                 bc_gates = kwagrs["b_gates"]
                 im = ax.imshow(bc_gates, cmap='bwr',aspect="auto",vmin=0,vmax=0.5)
                 ax.set_title("bc_gates",fontsize=18)
@@ -241,9 +227,8 @@ class Plot_Adaptive:
                 cb5 = plt.colorbar(im, ax=ax, label='Prob compare with experts')
             
 
-            if i == 15:
+            if i == 6:
             
-
                 # 绘制散点图，其中颜色亮度基于y值
                 for j, y in enumerate(y_values):
                     color = scalar_map.to_rgba(y)
@@ -256,13 +241,32 @@ class Plot_Adaptive:
 
 
         return self.fig, self.axes,[cb1,cb2,cb3,cb4,cb5,cb6]
+    
+    def plot_moe__load(self, nrow,ncol,**kwagrs):
         
+        if self.fig_load is None :
+            self._create_moe_load_grid2(nrow=nrow, ncol=ncol) # 3*3 或5*5
 
-        
-        
-        
+        load = kwagrs['load']
+        # 计算每个点的y值（即每个数组的长度）
+        y_values = [arr.shape[0] for arr in load]
+        epoch = kwagrs["epoch"]# 每隔记录10个增长1个
+        #正常画9个子网络的load
+        ax_order=0
 
-        
+                
+        for j, y in enumerate(y_values):
+            coord_x=load[j][:,0].cpu().detach().numpy()
+            coord_y=load[j][:,1].cpu().detach().numpy()
+
+            self.axes_load[ax_order].scatter(coord_x,coord_y,alpha=0.8,s=10,label=f"subnet_{j}_load")
+            self.axes_load[ax_order].legend(loc="upper left")
+            self.axes_load[ax_order].set_xlim([-2.5, 2.5])
+            self.axes_load[ax_order].set_ylim([-2.5, 2.5])
+            self.axes_load[ax_order].set_title(f"Load{y}_epoch{epoch}")
+            ax_order = ax_order+1
+
+        return self.fig_load, self.axes_load
 
             
     def plot_1d(self,nrow,ncol,**kwagrs):

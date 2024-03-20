@@ -679,7 +679,7 @@ s
                                             )
             if self.args.MOE == True:
                 
-                fig,axes,cb_list = self.plot.plot_moe__load_2d(nrow=6,ncol=3,
+                fig,axes,cb_list = self.plot.plot_moe__loss_gates(nrow=3,ncol=3,
                                                             loss_record = loss_record_npy,
                                                             omega_record=sub_omage_npy,
                                                             epoch=epoch,
@@ -690,6 +690,16 @@ s
                                                             p_gates= p_gates,
                                                             b_gates= b_gates
                                                             )
+                # 这里我们默认专家网络的平方关系，比如9、25
+                nrow = int(np.sqrt (self.args.subnets_number))
+
+                fig_load,axes_load = self.plot.plot_moe__load(nrow=nrow,ncol=nrow,epoch=epoch,load=self.model.Moe_scale._record_load())
+
+                fig_load.savefig('{}/combined_load_{}.png'.format(self.args.Save_Path, epoch),bbox_inches='tight')
+                       # 关闭当前的图形窗口
+                for ax in axes_load:
+                    ax.cla()
+            
                     
     
                     
@@ -704,14 +714,17 @@ s
         # 保存整个图表
         fig.savefig('{}/combined_loss_{}.png'.format(self.args.Save_Path, epoch),
                     bbox_inches='tight')
+        
         self.plot.fig=None
+        self.plot.fig_load = None
         
         for cb in cb_list:
             cb.remove()
         # 关闭当前的图形窗口
         for ax in axes:
             ax.cla()
-        
+
+
         plt.close()
         
 

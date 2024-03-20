@@ -32,7 +32,7 @@ class Analyzer4scale(Analyzer):
         #target=0 表示你对模型输出向量中索引为 0 的那个元素的贡献度特别感兴趣。
         #模型的输入会从基线（baselines 参数指定）逐渐变化到实际的输入值（在这里是 [1, 1]），在这个过程中，每一步都会计算模型输出相对于输入的梯度。n_steps 的值越大，插值就越细致
         scales_contribution = []
-        input_tensor=self.input_tensor
+        input_tensor= self.input_tensor
         device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         input_tensor=input_tensor.float().to(device)
     

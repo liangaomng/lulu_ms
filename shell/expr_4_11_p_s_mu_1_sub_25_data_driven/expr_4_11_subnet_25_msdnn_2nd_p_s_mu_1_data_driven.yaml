@@ -10,16 +10,16 @@ SET:
   Model: mscalenn2
   PDE_Solver: src_PDE/Poisson.py
   Penalty_boundary: 1000
-  Penalty_data: 0
-  Penalty_pde: 1
+  Penalty_data: 1
+  Penalty_pde: 0
   Seed: 42
-  Save_Path: Result/Poisson/expr_3_11_p_s_mu_15_sub_25_msdnn/
+  Save_Path: Result/Poisson/expr_4_11_p_s_mu_1_sub_25_msdnn_data_driven/
   Scale_Coeff: 1,11,21,31,41,51,61,71,81,91,101,111,121,131,141,151,161,171,181,191,201,211,221,231,241
   Src_agent: src_lam/Agent.py
   Sub_number: 25
   Test_points: 6400
-  lr: 0.0005
-  mu: 15
+  lr: 0.001
+  mu: 1
   shape: square
   Task: deepxde #deepxde
   Note: This is to test mscalednn in contribution of each scale

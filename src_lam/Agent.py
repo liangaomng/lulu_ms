@@ -80,6 +80,8 @@ class Base_Args():
         self.Loss_Record_Path = None
         self.Con_Record_Path=None
         self.Omega_Record_Path=None
+        self.Gates_Record_Path=None
+        self.w_gates_Record_Path = None
         
         self.data_source=None #task
         self.fig_record_interve=None
@@ -214,6 +216,7 @@ s
         args.Con_Record_Path = args.Save_Path + "/contribution.npy"
         args.Omega_Record_Path = args.Save_Path + "/omegas.npy"
         args.Gates_Record_Path = args.Save_Path + "/gates.npz"
+        args.w_gates_Record_Path = args.Save_Path + "/w_gates.npy"
 
         args.Learn_scale = config["SET"][0]['Learn_scale']
         args.PDE_py = config["SET"][0]['PDE_Solver']
@@ -411,8 +414,11 @@ s
         plt.savefig('{}/gates_{}.png'.format(self.args.Save_Path, kwargs["epoch"]),dpi=300)
         plt.close()
 
-    def _update_loss_record(self, epoch,train_loss,**kwargs):
+    def _update_loss_record(self, epoch,train_loss,moe_load,**kwargs):
 
+        
+    
+        
         # 保存画loss的值
         if epoch % self.args.record_interve == 0:
             if self.args.Task == "fitting": 
@@ -428,7 +434,14 @@ s
                 train_loss=train_loss.detach().cpu().numpy()
                 test_loss=kwargs["test_loss"]
                 test_data=kwargs["test_data"]
-                sub_omega= self.model.sub_omegas.detach().cpu().numpy()
+                if self.args.MOE == True:
+                    # 记录
+                    self.args.sub_omega= [self.model.Moe_model.experts[i].scale_coeff.item() for i in range(len(self.args.Scale_Coeff))]
+                else:
+                     self.args.sub_omega= [self.model.Multi_scale[i].scale_coeff.item() for i in range(len(self.args.Scale_Coeff))]
+                # 假设所有 scale_coeff 都需要被提取
+                self.args.sub_omega = np.array( self.args.sub_omega)
+
             
                 record = np.array([[epoch, train_loss,test_loss,pde_loss,bc_loss,data_loss,moe_loss]])
 
@@ -448,11 +461,13 @@ s
                 np.save(self.args.Loss_Record_Path, updated_data)
 
             self._CheckPoint(epoch=epoch)
-        #计算contri的值 moe记录门控和load的位置 
+        #计算contri的值 moe记录门控
         if epoch % 10 == 0:
             if self.args.MOE == False : # 普通的记录contri
                 analyzer = Analyzer4scale(model=self.model,d=2,scale_coeffs=self.args.Scale_Coeff)
                 contributions = analyzer._analyze_scales()
+
+
                 # 先创建一个包含 epoch 和 contributions 所有值的列表
                 combined_data = [epoch] + contributions     
                 # 然后将这个列表转换成一个 numpy 数组，并确保它是二维的
@@ -474,6 +489,7 @@ s
                     
             if self.args.MOE == True : # MOE 记录gates
                 p_gates = kwargs["p_gates"] #[6400,9]
+                print("p",p_gates.shape)
                 b_gates = kwargs["b_gates"] #[2500,9]
 
 
@@ -489,6 +505,8 @@ s
                         existing_epochs = existing_data['epoch']
                         existing_p_gates = existing_data['p_gates']
                         existing_b_gates = existing_data['b_gates']
+                        print("exist_p",existing_p_gates.shape)
+                        
 
                         
                         # Filter out the records for the current epoch, if they exist
@@ -508,9 +526,8 @@ s
 
         #记录omega
         if epoch % 10 == 0:
-
-            sub_omega =  self.model.sub_omegas.cpu().detach().numpy()
-            combine_data = [epoch] + sub_omega.tolist()
+            
+            combine_data = [epoch] + self.args.sub_omega.tolist()
 
             record = np.array([combine_data])
 
@@ -528,13 +545,9 @@ s
         #画图的间隔久
         if epoch % self.args.fig_record_interve == 0:
 
-            self._save4plot(epoch, test_loss,test_data=test_data,type="deepxde",sub_omega=sub_omega)
-
-            if self.args.MOE:
-                pass
-
-                #self._save_gates_record(epoch=epoch,p_gates=kwargs["p_gates"],b_gates=kwargs["b_gates"],sub_omega=sub_omega)
-                #保存gates-
+            self._save4plot(epoch, test_loss,test_data=test_data,
+                            type="deepxde",sub_omega=self.args.sub_omega,
+                            load=moe_load)
                 
             
                 
@@ -620,8 +633,6 @@ s
             # 将TensorDataset转换为numpy数组
             x_test = test_data.cpu().numpy() #[..,2]
 
-
-
         # 读取损失记录
         loss_record_npy = np.load(self.args.Loss_Record_Path, allow_pickle=True)
         #读取贡献值
@@ -629,7 +640,7 @@ s
             contr_record_npy= np.load(self.args.Con_Record_Path, allow_pickle=True)
         #读取sub_omega
         sub_omage_npy = np.load(self.args.Omega_Record_Path, allow_pickle=True)
-        #读取gates
+        #读取gates-test
         if self.args.MOE == True :
             gates_npz = np.load(self.args.Gates_Record_Path, allow_pickle=True)
             # 假设data是一个字典，提取p_gates和bc_gates
@@ -643,27 +654,7 @@ s
                 p_gates=p_gates.reshape(-1,len(self.args.Scale_Coeff)) #(6400,0)
                 b_gates=b_gates[:,:].reshape(-1,len(self.args.Scale_Coeff))
 
-       
-    
-        # 获取模型预测 tuple 后需要改
-        pred = self.model(torch.from_numpy(x_test).float().to(self.device))[0].detach().cpu().numpy()
-    
-
-        if x_test.shape[-1] == 1: #[500,1]
-            # analyzer
-            analyzer = Analyzer4scale(model=self.model, d=1,
-                                    scale_coeffs=self.args.Scale_Coeff)
-            fig,axes=self.plot.plot_1d(nrow=3,ncol=3,
-                                loss_record=loss_record_npy,
-                                analyzer=analyzer,
-                                x_test=x_test,
-                                y_true=y_true,
-                                pred=pred,
-                                epoch=epoch,
-                                avg_test_loss=avg_test_loss,
-                                contribution_record=self.args.Con_record,)
-
-        elif x_test.shape[-1] == 2: #[5000,2]
+        if x_test.shape[-1] == 2: #[5000,2]
             # analyzer
            
             if self.args.MOE == False:
@@ -676,33 +667,35 @@ s
                                             solver=self.solver,
                                             model=self.model,
                                             record_interve =self.args.record_interve,
+                                            MOE=self.args.MOE,
                                             )
             if self.args.MOE == True:
-                
+            
                 fig,axes,cb_list = self.plot.plot_moe__loss_gates(nrow=3,ncol=3,
                                                             loss_record = loss_record_npy,
                                                             omega_record=sub_omage_npy,
                                                             epoch=epoch,
                                                             model=self.model,
                                                             solver=self.solver,
-                                                            load = self.model.Moe_scale._record_load(),
                                                             record_interve = self.args.record_interve,
                                                             p_gates= p_gates,
-                                                            b_gates= b_gates
+                                                            b_gates= b_gates,
+                                                            load = kwargs["load"]
                                                             )
                 # 这里我们默认专家网络的平方关系，比如9、25
                 nrow = int(np.sqrt (self.args.subnets_number))
 
-                fig_load,axes_load = self.plot.plot_moe__load(nrow=nrow,ncol=nrow,epoch=epoch,load=self.model.Moe_scale._record_load())
+                fig_load,axes_load = self.plot.plot_moe__load(nrow=nrow,
+                                                              ncol=nrow,epoch=epoch,
+                                                              load=  kwargs["load"],
+                                                              name = self.solver.name,
+                                                             )
 
                 fig_load.savefig('{}/combined_load_{}.png'.format(self.args.Save_Path, epoch),bbox_inches='tight')
                        # 关闭当前的图形窗口
                 for ax in axes_load:
-                    ax.cla()
-            
-                    
-    
-                    
+                    ax.cla()     
+                plt.close()
                 
                 
                 
@@ -723,14 +716,9 @@ s
         # 关闭当前的图形窗口
         for ax in axes:
             ax.cla()
-
-
         plt.close()
         
 
-
-
-  
 
     def _CheckPoint(self,**kwargs):
             epoch=kwargs["epoch"]
@@ -806,7 +794,35 @@ s
         print("ritz")
         model = RitzNet(params)
         return model
+    def _update_weights(self,epoch,w_gates):
+        
+        # 检查文件是否存在
+        if epoch % self.args.record_interve == 0:
+          
+            if not os.path.isfile(self.args.w_gates_Record_Path):
+                # 如果文件不存在，初始化一个空数组并保存
+                np.save(self.args.w_gates_Record_Path, w_gates)
+            else:
+                # 读取现有文件
+                existing_data = np.load(self.args.w_gates_Record_Path)
+                # 过滤掉与当前 epoch 相同的记录
+                existing_data = existing_data[existing_data[:, 0] != epoch]
+                # 将新记录追加到现有数据中
+                updated_data = np.vstack((existing_data, w_gates))
+                # 保存更新后的数据
+                np.save(self.args.w_gates_Record_Path, updated_data)
+            
+        if epoch % self.args.fig_record_interve == 0:
+            
+            plt.matshow(w_gates,cmap="jet",vmin=-1,vmax=1)
 
+            plt.colorbar()
+            plt.title(f"epoch={epoch} experts gates' weights",fontsize=18)
+            plt.savefig(f"{self.args.Save_Path}/weights_{epoch}.png",dpi=200)
+            plt.close()
+        
+        
+        
    
     def Train_XDE(self):
 
@@ -831,13 +847,15 @@ s
 
                     
         for epoch in range(self.args.epoch):
-            
+          
             self.solver.data.train_x,_,_=self.solver.data.train_next_batch()
             self.solver.data.train_x_all=self.solver.data.train_points()
+            
 
 
             # deepxde重新生成边界条件点-every epoch
             all_data= self.solver.data.train_x_all #pde+bc data
+     
 
             bc_data= self.solver.data.train_x_bc #bc data
    
@@ -857,17 +875,18 @@ s
             bc_data.requires_grad=True
             #pde loss
             if self.args.penalty_pde != 0:
-                train_pde_loss,_,_ = self.solver.pde_loss(net=self.model,pde_data=pde_data)
+                train_pde_loss,pde_moe ,p_gates,_,_= self.solver.pde_loss(net=self.model,pde_data=pde_data,MOE=self.args.MOE)
+    
                 #bc loss
-                train_bc_loss,_,_= self.solver.bc_loss(net=self.model,data=bc_data)
-                train_loss =  self.args.penalty_pde*train_pde_loss
-                train_loss += self.args.penalty_boun*train_bc_loss
+                train_bc_loss,bc_moe,b_gates,_,_ = self.solver.bc_loss(net=self.model,data=bc_data,MOE = self.args.MOE)
+                train_loss =  self.args.penalty_pde*train_pde_loss + pde_moe + bc_moe
+                train_loss += self.args.penalty_boun*train_bc_loss 
             #data loss
             elif self.args.penalty_pde == 0: #pure data_driven
-                train_data_loss,_,_=self.solver.data_loss(net=self.model,data=train_data)
+                train_data_loss,data_moe,_,_,_=self.solver.data_loss(net=self.model,data=train_data,MOE=self.args.MOE)
 
                 print("train_data_loss:{}".format(train_data_loss)) 
-                train_loss = train_data_loss *self.args.penalty_data
+                train_loss = train_data_loss *self.args.penalty_data + data_moe
             
             #train
             optimizer.zero_grad()
@@ -879,46 +898,58 @@ s
 
 
 
-            #plot
+            #plot -test 主要看data，pde和bc只是辅助
+            with torch.no_grad():
                 
-            if epoch % 1== 0:
-                test=self.solver.data.test_x
-                torch_test=torch.from_numpy(test).float().to(self.device)
+                if epoch % 1== 0:
+                    test=self.solver.data.test_x
+                    torch_test=torch.from_numpy(test).float().to(self.device)
 
-                data_loss,d_moe_loss,d_gates = self.solver.data_loss(net=self.model, data=pde_data)
-                pde_loss,p_moe_loss,p_gates = self.solver.pde_loss(net=self.model,pde_data=pde_data)
-                bc_loss,b_moe_loss,b_gates=self.solver.bc_loss(net=self.model,data=bc_data)
-                moe_loss = p_moe_loss+b_moe_loss
-                #test loss only see the data loss
-                test_loss=bc_loss+pde_loss+data_loss 
-                print(f"epoch={epoch},testloss{test_loss:.6f} pde_loss:{pde_loss:.6f},bc{bc_loss:.6f},data_loss:{data_loss:.6f},moe_loss:{moe_loss:.6f}",flush=True)
-                
-        
-            if self.args.MOE:
+                    data_loss,moe_loss,d_gates,d_w_gates,d_load = self.solver.data_loss(net=self.model, 
+                                                                                        data=pde_data,MOE=self.args.MOE)
 
-                
-                self._update_loss_record(   epoch, train_loss=train_loss,
-                                            pde_loss=pde_loss.item(),
-                                            bc_loss=bc_loss.item(),
-                                            data_loss=data_loss.item(),
-                                            test_loss=test_loss.item(),
-                                            test_data=torch_test,
-                                        
-                                            moe_loss=moe_loss.item(),
-                                            p_gates = p_gates.cpu().detach().numpy(),
-                                            b_gates = b_gates.cpu().detach().numpy())
-            else:
-                self._update_loss_record(   epoch, train_loss=train_loss,
-                                            pde_loss=pde_loss.item(),
-                                            bc_loss=bc_loss.item(),
-                                            data_loss=data_loss.item(),
-                                            test_loss=test_loss.item(), 
-                                            test_data=torch_test,
-                                          
-                                            moe_loss= torch.tensor(0),
-                                            p_gates = torch.tensor(0),
-                                            b_gates = torch.tensor(0))
-        
+                    #test loss only see the data loss
+                    test_loss= data_loss 
+            
+                    
+                    print(f"epoch={epoch} pde_loss:{train_pde_loss:.2e},bc{train_bc_loss:.2e},data_loss:{data_loss:.2e},moe_loss:{moe_loss:.2e}",flush=True)
+            
+            
+                if self.args.MOE:
+
+                    #data 的moe
+                    
+                    Moe_load = d_load
+                    self._update_weights(epoch, w_gates = d_w_gates.cpu().detach().numpy())
+                   
+
+                    # d_w_gates d_gates的保存
+
+                    self._update_loss_record(   epoch, train_loss = train_loss,
+                                                pde_loss = train_pde_loss.item(),
+                                                bc_loss = train_bc_loss.item(),
+                                                data_loss = data_loss.item(),
+                                                test_loss = test_loss.item(),
+                                                test_data = torch_test,
+                                                moe_load = Moe_load,
+                                                moe_loss=moe_loss.item(),
+                                                p_gates = p_gates.cpu().detach().numpy(),
+                                                b_gates = b_gates.cpu().detach().numpy(),
+                                               ) 
+                else:
+                    self._update_loss_record(   epoch, train_loss=train_loss,
+                                                pde_loss=train_pde_loss.item(),
+                                                bc_loss=train_bc_loss.item(),
+                                                data_loss=data_loss.item(),
+                                                test_loss=test_loss.item(), 
+                                                test_data=torch_test,
+                                                moe_load =None,
+
+                                                moe_loss= torch.tensor(0),
+                                                p_gates = torch.tensor(0),
+                                                b_gates = torch.tensor(0),
+                                                )
+            
 
                 
                 

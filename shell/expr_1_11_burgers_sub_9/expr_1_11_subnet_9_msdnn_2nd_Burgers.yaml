@@ -1,30 +1,29 @@
 SET:
 - Batch_size: 1
-  Boundary_points: 2500
+  Boundary_points: 200
   Section: 0,1000,4500
-  Domain_points: 6400
+  Domain_points: 5000
   Epoch: 10000
   Fig_Record_Interve: 100
   Record_Interve: 10
   Learn_scale: false
-  Model: MOE
-  PDE_Solver: src_PDE/Poisson.py
+  Model: mscalenn2
+  PDE_Solver: src_PDE/Burgers.py
   Penalty_boundary: 1000
   Penalty_data: 0
-  Penalty_pde: 1
+  Penalty_pde: 100
   Seed: 42
-  Save_Path: Result/Poisson/expr_1_11_p_p_mu_1_sub_9_MOE/sp_6/
+  Save_Path: Result/Burgers/expr_1_11_sub_9_msdnn/
   Scale_Coeff: 1,2,4,8,16,32,64,128,256
   Src_agent: src_lam/Agent.py
   Sub_number: 9
-  Test_points: 6400
+  Test_points: 5000
   lr: 0.001
-  mu: 1
-  shape: poly_with_hole
+  shape: zero
   Task: deepxde #deepxde
   Note: This is to test mscalednn in contribution of each scale
-  MOE: true
-  sp_k: 6
+  MOE: false
+  sp_k: 9
 Subnet:
 - Act_Set: phi,phi,phi
   Ini_Set: xavier_uniform

@@ -124,7 +124,8 @@ class MoE(nn.Module):
     device_num: which GPU to use, default as False which is cpu
     """
 
-    def __init__(self, subnet, input_size, output_size, num_experts, dropout_p=0.3, noisy_gating=False, k=4,device_num="cuda:0",**kwargs):
+    def __init__(self, subnet, input_size, output_size, num_experts, dropout_p=0.1, noisy_gating=False, k=4,
+                 device_num="cuda:0",**kwargs):
         super(MoE, self).__init__()
         self.expert_type = "subnet"
         self.noisy_gating = noisy_gating
@@ -139,11 +140,26 @@ class MoE(nn.Module):
          # 初始化专家网络
         self.experts = nn.ModuleList()
         
-        for _ in range(num_experts):
+        for i in range(num_experts):
             one_layer = copy.deepcopy(subnet)
+
+            one_layer.scale_coeff = torch.nn.Parameter(self.scales_coef[i],requires_grad=False)
+            
             self.experts.append(one_layer)
 
+
         self.w_gate = nn.Parameter(torch.zeros(self.input_size, self.num_experts), requires_grad=True)
+    
+         # 例如，第一个专家的权重初始化为0.1，最后一个专家的权重初始化为0.01
+        init_values = torch.linspace(1, 0.001, steps=num_experts)
+
+        # 正确应用初始化，而不是原地操作
+        # 赋值操作不是原地操作，因此不会导致错误
+        with torch.no_grad():  # 确保这里的操作不会在计算图中追踪梯度
+            for i in range(num_experts):
+                self.w_gate[:, i] = init_values[i]
+        
+        
         self.w_noise = nn.Parameter(torch.zeros(self.input_size, self.num_experts), requires_grad=True)
 
 
@@ -234,7 +250,7 @@ class MoE(nn.Module):
         return prob
 
 
-    def noisy_top_k_gating(self, x, train, noise_epsilon=1e-5):
+    def noisy_top_k_gating(self, x, train, noise_epsilon=1e-1):
         """Noisy top-k gating.
           See paper: https://arxiv.org/abs/1701.06538.
           Args:
@@ -275,49 +291,43 @@ class MoE(nn.Module):
 
 
 
-    def forward(self, x, train=True, loss_coef=1e-2):
+    def forward(self, x, train=True, loss_coef=1):
 
-        gates, load = self.noisy_top_k_gating(x, train)
+        self.gates, self.load = self.noisy_top_k_gating(x, train)
 
         # 计算重要性损失
-        importance = gates.sum(0)
-        loss = self.cv_squared(importance) + self.cv_squared(load)
+        importance = self.gates.sum(0)
+        self.loss = self.cv_squared(importance) + self.cv_squared(self.load)
     
-        loss *= loss_coef
+        self.loss *= loss_coef
 
         # 使用SparseDispatcher来分配输入到不同的专家，并基于门控(gates)获得每个专家的输入
-        dispatcher = SparseDispatcher(self.num_experts, gates)
+        dispatcher = SparseDispatcher(self.num_experts, self.gates)
         expert_inputs = dispatcher.dispatch(x)
         
         self.load = expert_inputs
-
-        gates_return = gates
 
 
         # 应用尺度系数到每个专家的输入
         expert_outputs = []
         
         for i, expert_input in enumerate(expert_inputs):
-            # 确保尺度系数是一个tensor并且与设备兼容
-            scale_coeff = self.scales_coef[i]
-            # 应用尺度系数到输入
-            scaled_input = expert_input * scale_coeff
+        
+            scaled_input = expert_input 
             # 通过专家网络处理输入
             expert_output = self.experts[i](scaled_input)
             expert_outputs.append(expert_output)
 
-  
-
         # 组合来自不同专家的输出，
         y = dispatcher.combine(expert_outputs)
         #return y,loss,gates:[6400,9]
-        return y, loss , gates
+        return y
     
                   
     
     def _record_load(self):
 
-        return self.load
+        return self.load,self.w_gate,self.gates,self.loss
     
 if __name__=="__main__":
     pass

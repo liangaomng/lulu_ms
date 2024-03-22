@@ -288,16 +288,16 @@ class PDE_PossionData(PDE_base):
 
         u=self.gen_exact_solution(x,y)
 
-        sc=ax.scatter(x,y, c=u,cmap="bwr",s=2)
+        sc=ax.scatter(x,y, c=u,cmap="bwr",s=10)
 
-        ax.set_xlabel("x",fontsize=12)
+        ax.set_xlabel("x",fontsize=14)
         
-        ax.set_ylabel("y",fontsize=12)
+        ax.set_ylabel("y",fontsize=14)
            
         # 色条
-        cb=plt.colorbar(sc, ax=ax)
+        cb=plt.colorbar(sc, ax=ax,vmin=-1,vmax=1)
 
-        ax.set_title(title,fontsize=14)
+        ax.set_title(title,fontsize=18)
         return u,cb
     def plot_pred(self,ax=None,model=None,
                     title="Pred u(x,y)",
@@ -328,13 +328,12 @@ class PDE_PossionData(PDE_base):
         
 
         # 绘制热力图
-        print(usol_net.shape)
-        sc=ax.scatter(x,y, c=usol_net, cmap="bwr",s=2)
+        sc=ax.scatter(x,y, c=usol_net, cmap="bwr",s=10,vmin=-1,vmax=1)
         cb= plt.colorbar(sc, ax=ax)
 
-        ax.set_xlabel("x",fontsize=12)
-        ax.set_ylabel("y",fontsize=12)
-        ax.set_title(title,fontsize=14)
+        ax.set_xlabel("x",fontsize=14)
+        ax.set_ylabel("y",fontsize=14)
+        ax.set_title(title,fontsize=18)
         return usol_net,cb
 
     def train(self,net=None):

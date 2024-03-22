@@ -9,10 +9,8 @@ declare -a Task
 #1 is exprs folder 
 Task[0]=Poisson
 full_path=$0
-shape="p"
-mu="1"
-expr_folder="shell/expr_1_11_p_${shape}_mu_${mu}_sub_9/MOE/"
 
+expr_folder="shell/expr_1_11_burgers_sub_9/"
 
 export DDE_BACKEND=pytorch
 
@@ -22,5 +20,5 @@ script_name=$(basename "$full_path" .sh)
 yaml_path=${expr_folder}${script_name}.yaml
 echo "The name of this script is: $script_name"
 
-# #possion
-python Expr1_P.py --config_yaml $yaml_path --save_folder $script_name
+# burgers
+python Expr1_Burgers.py --config_yaml $yaml_path --save_folder $script_name

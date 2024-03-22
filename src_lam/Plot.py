@@ -110,7 +110,7 @@ class Plot_Adaptive:
         cmap = plt.cm.rainbow
         norm = plt.Normalize(min(y_values), max(y_values))
         scalar_map = cm.ScalarMappable(norm=norm, cmap=cmap)
-        
+        record_inter =kwagrs['record_interve']
 
         # 注意：这里我们使用了matplotlib的颜色映射。更亮的颜色表示更大的y值。
 
@@ -121,32 +121,53 @@ class Plot_Adaptive:
 
                 # 在第一个子图上绘制真实值的散点图
 
-                U_true,cb1=solver.plot_exact(   ax=self.axes[0],
-                                                title="True",
-                                                cmap="bwr",
-                                                data=solver.data.test_x)
+                if solver.name =="Burgers":
+                    U_true,cb1,T,X=solver.plot_exact(   ax=self.axes[0],
+                                                    title="True",
+                                                    cmap="bwr",
+                                                    data=solver.data.test_x)
 
-                # 在第一个子图上绘制真实值的散点图
-                U_pred,cb2=solver.plot_pred(    ax=self.axes[1],
-                                                model=model,
-                                                title="Pred",
-                                                cmap="bwr",
-                                                data=solver.data.test_x,MOE=True)
-                U_true=U_true.reshape(-1,1)
-                
-                data=solver.data.test_x
-                
-                #x轴实际是t【:,1】
-                sc=self.axes[2].scatter(data[:,0],data[:,1],c=np.abs(U_pred-U_true),cmap="bwr",s=2)
-                # 添加颜色条
-                cb3=plt.colorbar(sc, ax=self.axes[2], label='Absolute Difference')
+                    # 在第一个子图上绘制真实值的散点图
+                    U_pred,cb2=solver.plot_pred(    ax=self.axes[1],
+                                                    model=model,
+                                                    title="Pred",
+                                                    cmap="bwr",
+                                                    data=solver.data.test_x,MOE = True)
+                                            
+                    
+                    #x轴实际是t【:,1】
+                    sc=self.axes[2].scatter(T,X,c= np.abs(U_pred-U_true),cmap="bwr",s=2)
+                    # 添加颜色条
+                    cb3=plt.colorbar(sc, ax=self.axes[2], label='Absolute Difference')
+                else:                     
+                    # 在第一个子图上绘制真实值的散点图
+
+                    U_true,cb1=solver.plot_exact(   ax=self.axes[0],
+                                                    title="True",
+                                                    cmap="bwr",
+                                                    data=solver.data.test_x)
+
+                    # 在第一个子图上绘制真实值的散点图
+                    U_pred,cb2=solver.plot_pred(    ax=self.axes[1],
+                                                    model=model,
+                                                    title="Pred",
+                                                    cmap="bwr",
+                                                    data=solver.data.test_x)
+                    U_true=U_true.reshape(-1,1)
+                    
+                    data=solver.data.test_x
+                    
+                    #x轴实际是【:,1】
+                    sc=self.axes[2].scatter(data[:,0],data[:,1],c=np.abs(U_pred-U_true),cmap="bwr",s=2)
+                    # 添加颜色条
+                    cb3=plt.colorbar(sc, ax=self.axes[2], label='Absolute Difference')
 
                 # 隐藏 x 和 y 轴的刻度和标签
                 self.axes[2].set_xticks([])
                 self.axes[2].set_yticks([])
                 # 设置第一个子图的图例、坐标轴标签和标题
                 mse = np.mean((U_pred - U_true) ** 2)
-                self.axes[2].set_title("MSE={:.6f}_Epoch{}".format(mse, epoch),fontsize=14) 
+                self.axes[2].set_title("MSE={:.6f}_Epoch{}".format(mse, epoch),fontsize=18) 
             if i == 3:  # 第二张图
                 # 在第最后子图上绘制损失曲线
             
@@ -237,7 +258,10 @@ class Plot_Adaptive:
                     else:
                         ax.scatter(x=j, y=y, color=color,s=100,alpha=0.8)
                 ax.plot(range(len(y_values)), y_values, '--', color='k')
-                cb6=plt.colorbar(scalar_map, ax=ax, label='Load in test')
+                
+                if epoch>=1:
+                    ax.set_title(f" Experts_Points Min Data_loss epoch :{min_epoch * record_inter}")
+                cb6=plt.colorbar(scalar_map, ax=ax, label='Load Points in test')
 
 
         return self.fig, self.axes,[cb1,cb2,cb3,cb4,cb5,cb6]
@@ -253,101 +277,33 @@ class Plot_Adaptive:
         epoch = kwagrs["epoch"]# 每隔记录10个增长1个
         #正常画9个子网络的load
         ax_order=0
+        name = kwagrs["name"] #考虑x和t的名字
 
+    
                 
         for j, y in enumerate(y_values):
-            coord_x=load[j][:,0].cpu().detach().numpy()
-            coord_y=load[j][:,1].cpu().detach().numpy()
+            
+            coord_x=load[j][:,0].cpu().detach().numpy() #x
+            coord_y=load[j][:,1].cpu().detach().numpy() #t 
 
-            self.axes_load[ax_order].scatter(coord_x,coord_y,alpha=0.8,s=10,label=f"subnet_{j}_load")
+        
+            
+            if name =="Burgers":
+                
+                self.axes_load[ax_order].scatter(coord_y,coord_x,alpha=0.8,s=2,label=f"subnet_{j}_load")
+            else:
+                
+                self.axes_load[ax_order].scatter(coord_x,coord_y,alpha=0.8,s=2,label=f"subnet_{j}_load")
+                
             self.axes_load[ax_order].legend(loc="upper left")
-            self.axes_load[ax_order].set_xlim([-2.5, 2.5])
-            self.axes_load[ax_order].set_ylim([-2.5, 2.5])
-            self.axes_load[ax_order].set_title(f"Load{y}_epoch{epoch}")
+
+            self.axes_load[ax_order].set_title(f"Load{y}_epoch{epoch}",fontsize=20)
             ax_order = ax_order+1
 
         return self.fig_load, self.axes_load
 
             
-    def plot_1d(self,nrow,ncol,**kwagrs):
-        # 绘制一些示例数据
-        c_map=["Green","Blue","Purple"]
-        # 从kwagrs中获取参数
-        analyzer=kwagrs["analyzer"]
-        if self.fig is None:
-            self._create_subplot_grid1(nrow,ncol)
-        Record=kwagrs["contribution_record"]
-        loss_record_df = kwagrs["loss_record"]
-        x_test = kwagrs["x_test"]
-        pred = kwagrs["pred"]
-        y_true = kwagrs["y_true"]
-        avg_test_loss = kwagrs["avg_test_loss"]
-        epoch = kwagrs["epoch"]
-
-        for i, ax in enumerate(self.axes):
-
-            if i==0: #   第一张图
-                # 在第一个子图上绘制预测值的散点图
-                ax.cla()
-
-                ax.scatter(x_test, pred, label="Pred", color="red")
-                # 在第一个子图上绘制真实值的散点图
-                ax.scatter(x_test, y_true, label="True", color="blue")
-                # 设置第一个子图的图例、坐标轴标签和标题
-                ax.legend(loc="best", fontsize=16)
-                ax.set_xlabel('x', fontsize=16)
-                ax.set_ylabel('y', fontsize=16)
-                ax.get_xaxis().get_major_formatter().set_useOffset(False)
-                ax.tick_params(labelsize=16, width=2, colors='black')
-                ax.set_title("Test_MSE={:.6f}_Epoch{}".format(avg_test_loss, epoch))
-                ax.legend()
-            if i==1: #   第二张图
-                # 在第最后子图上绘制损失曲线
-                ax.cla()
-                ax.plot(loss_record_df[:,0], loss_record_df[:,1], label="Train Loss", color="blue")
-                ax.plot(loss_record_df[:,0], loss_record_df[:,2], label="Valid Loss", color="red")
-                ax.plot(loss_record_df[:,0], loss_record_df[:,3], label="Test Loss", color="green")
-
-                # 画三条虚线
-                if epoch >=100:
-                    for j,value in enumerate(Record):
-                        ax.axvline(x=value, color=c_map[j], linestyle='--')
-                    for loss_type in ['Test Loss']:
-                        #valid loss
-                        min_loss = np.min(loss_record_df[:,2])
-                        min_epoch = loss_record_df[np.where(loss_record_df[:, 2] == min_loss)][0, 0]
-                        ax.axhline(y=min_loss, xmax=min_epoch,color='black', linestyle=':',linewidth=4)
-                        # 在最小损失点做标记
-                        ax.plot(min_epoch,min_loss, '*',
-                                color='black',markersize=18,
-                                label=f"valid_{min_loss:.1e}")  # 使用黑色圆点做标记
-                        # 假设已经计算出min_loss，将其添加到Y轴的刻度标签中
-                        extra_ticks = ax.get_yticks().tolist() + [min_loss]
-                        ax.set_yticks(extra_ticks)
-                        # 设置刻度标签，确保最小损失值的标签使用科学记数法
-                        ax.axvline(x=min_epoch,ymin=1e-10,ymax=min_loss ,linestyle='--',linewidth=4)
-                ax.legend(loc="best", fontsize=16)
-                # 设置第二个子图的图例、坐标轴标签和标题
-                ax.set_yscale('log')  # 将y轴设置为对数尺度
-                ax.set_xlabel('Epoch', fontsize=16)
-                ax.set_ylabel('Loss', fontsize=16)
-                ax.get_xaxis().get_major_formatter().set_useOffset(False)
-                ax.tick_params(labelsize=16, width=2, colors='black')
-                ax.set_title("Loss_Epoch{}".format(epoch))
-
-            if i==2: #   第三行图开始画贡献度
-                if (epoch == Record[0]):
-                    analyzer.plot_contributions(ax=self.axes[i],fig=self.fig,cmap=c_map[0])
-            if i==3:
-                if (epoch == Record[1]):
-                    analyzer.plot_contributions(ax=self.axes[i],fig=self.fig,cmap=c_map[1])
-            if i==4:
-                if (epoch == Record[2]):
-                    # for j in epoch_axv:
-                    analyzer.plot_contributions(ax=self.axes[i],fig=self.fig,cmap=c_map[2])
-
-
-        return self.fig,self.axes
+ 
     def plot_2d(self, nrow, ncol, **kwagrs):
         # 绘制一些示例数据
         c_map = ["Green", "Purple"]
@@ -370,33 +326,56 @@ class Plot_Adaptive:
 
                 epoch = kwagrs["epoch"]
                 # 在第一个子图上绘制真实值的散点图
-                U_true,cb1=solver.plot_exact(   ax=self.axes[0],
-                                                title="True",
-                                                cmap="bwr",
-                                                data=solver.data.test_x)
+                print(solver.name)
+                if solver.name =="Burgers":
+                    U_true,cb1,T,X=solver.plot_exact(   ax=self.axes[0],
+                                                    title="True",
+                                                    cmap="bwr",
+                                                    data=solver.data.test_x)
 
-                # 在第一个子图上绘制真实值的散点图
-                U_pred,cb2=solver.plot_pred(    ax=self.axes[1],
-                                                model=model,
-                                                title="Pred",
-                                                cmap="bwr",
-                                                data=solver.data.test_x,
-                                                MOE=False)
-                U_true=U_true.reshape(-1,1)
-                
-                data=solver.data.test_x
-                
-                #x轴实际是t【:,1】
-                sc=self.axes[2].scatter(data[:,0],data[:,1],c=np.abs(U_pred-U_true),cmap="bwr",s=2)
-                # 添加颜色条
-                cb3=plt.colorbar(sc, ax=self.axes[2], label='Absolute Difference')
+                    # 在第一个子图上绘制真实值的散点图
+                    U_pred,cb2=solver.plot_pred(    ax=self.axes[1],
+                                                    model=model,
+                                                    title="Pred",
+                                                    cmap="bwr",
+                                                    data=solver.data.test_x,
+                                                    MOE=False
+                                                    
+                                                )
+                    
+                    #x轴实际是t【:,1】
+                    sc=self.axes[2].scatter(T,X,c= np.abs(U_pred-U_true),cmap="bwr",s=2)
+                    # 添加颜色条
+                    cb3=plt.colorbar(sc, ax=self.axes[2], label='Absolute Difference')
+                else:                     
+                    # 在第一个子图上绘制真实值的散点图
+
+                    U_true,cb1=solver.plot_exact(   ax=self.axes[0],
+                                                    title="True",
+                                                    cmap="bwr",
+                                                    data=solver.data.test_x)
+
+                    # 在第一个子图上绘制真实值的散点图
+                    U_pred,cb2=solver.plot_pred(    ax=self.axes[1],
+                                                    model=model,
+                                                    title="Pred",
+                                                    cmap="bwr",
+                                                    data=solver.data.test_x,MOE=True)
+                    U_true=U_true.reshape(-1,1)
+                    
+                    data=solver.data.test_x
+                    
+                    #x轴实际是【:,1】
+                    sc=self.axes[2].scatter(data[:,0],data[:,1],c=np.abs(U_pred-U_true),cmap="bwr",s=2)
+                    # 添加颜色条
+                    cb3=plt.colorbar(sc, ax=self.axes[2], label='Absolute Difference')
 
                 # 隐藏 x 和 y 轴的刻度和标签
                 self.axes[2].set_xticks([])
                 self.axes[2].set_yticks([])
                 # 设置第一个子图的图例、坐标轴标签和标题
                 mse = np.mean((U_pred - U_true) ** 2)
-                self.axes[2].set_title("MSE={:.6f}_Epoch{}".format(mse, epoch),fontsize=14)
+                self.axes[2].set_title("MSE={:.2e}_Epoch{}".format(mse, epoch),fontsize=18)
 
 
             if i == 3:  # 第二张图
